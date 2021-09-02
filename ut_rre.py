@@ -3,7 +3,6 @@ import unittest
 import rre
 
 # next steps in order
-#   -named rules
 #   -terminal-match
 #   -terminal-match error messages
 #   -structured output
@@ -131,6 +130,9 @@ class TestRRE(unittest.TestCase):
 
     def test_named(self):
         self.assertEqual(rre.parse(b'{:hello}'), rre.named(b'hello'))
+
+    def test_terminal(self):
+        self.assertEqual(rre.parse(b'{!test}'), rre.terminal(rre.const(b'test')))
 
 if __name__ == '__main__':
     unittest.main()

@@ -22,6 +22,8 @@ def parse_partial(src, prev):
         el, src = group.parse(src)
     elif len(src) > 2 and src[0:2] == b'{:':
         el, src = named.parse(src)
+    elif len(src) > 2 and src[0:2] == b'{!':
+        el, src = terminal.parse(src)
     elif src[0:1] in rep.short_hands or src[0:1] == b'{':
         el, src = rep.parse(src, prev)
         prev = None
@@ -330,6 +332,31 @@ class named(expr):
 
     def __repr__(self):
         return f"named(\"{self.name}\")"
+
+class terminal(expr):
+    @classmethod
+    def parse(cls, src):
+        assert src[0:2] == b'{!'
+        src = src[2:]
+        inner = None
+        while len(src) and src[0:1] != b'}':
+            inner, src = parse_partial(src, inner)
+        assert src[0:1] == b'}'
+        src = src[1:]
+        return terminal(inner), src
+
+    def __init__(self, inner):
+        self.inner = inner
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.inner == other.inner
+
+    def __repr__(self):
+        return f"terminal({repr(self.inner)})"
+
+    def simplify(self):
+        self.inner = self.inner.simplify()
+        return self
 
 class InvalidCombinationError(Exception):
     pass
