@@ -85,5 +85,15 @@ class TestRRE(unittest.TestCase):
     def test_wild(self):
         self.assertEqual(rre.parse(b'.'), rre.char_class([], invert=True))
 
+    def test_sh_word(self):
+        chars = []
+        for i in range(26):
+            chars.append(bytes([b'a'[0] + i]))
+            chars.append(bytes([b'A'[0] + i]))
+        for i in range(10):
+            chars.append(bytes([b'0'[0] + i]))
+        chars.append(b'_')
+        self.assertEqual(rre.parse(b'\\w'), rre.char_class(chars))
+
 if __name__ == '__main__':
     unittest.main()

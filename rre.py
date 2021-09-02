@@ -10,6 +10,10 @@ def parse_partial(src, prev):
     elif src[0:1] == b'.':
         el = char_class([], invert=True)
         src = src[1:]
+    elif src[0:1] == b'\\':
+        src = src[1:]
+        el = char_class(char_class.short_hands[src[0:1]])
+        src = src[1:]
     elif src[0:1] == b'|':
         el = either(prev, None)
         src = src[1:]
@@ -102,7 +106,30 @@ class const(expr):
         else:
             raise InvalidCombinationError()
 
+def char_range(start, stop):
+    return list(bytes([i]) for i in range(ord(start), ord(stop)+1))
+
+def as_ch(byte):
+    e = {
+        b'\\': "\\\\",
+        b'\n': "\\n",
+        b'\r': "\\r",
+        b'\b': "\\b",
+        b'\t': "\\t",
+        b'"': "\\\"",
+        b'\0': "\\0",
+    }
+    if byte in e:
+        return e[byte]
+    try:
+        return byte.decode()
+    except:
+        return f"\\x{byte[0]:02x}"
+
 class char_class(expr):
+    short_hands = {
+        b'w': list(char_range(b'a', b'z') + char_range(b'A', b'Z') + char_range(b'0', b'9') + [b'_'])
+    }
     @classmethod
     def parse(cls, src):
         invert = False
@@ -259,23 +286,3 @@ class rep(expr):
 
 class InvalidCombinationError(Exception):
     pass
-
-def char_range(start, stop):
-    return list(bytes([i]) for i in range(ord(start), ord(stop)+1))
-
-def as_ch(byte):
-    e = {
-        b'\\': "\\\\",
-        b'\n': "\\n",
-        b'\r': "\\r",
-        b'\b': "\\b",
-        b'\t': "\\t",
-        b'"': "\\\"",
-        b'\0': "\\0",
-    }
-    if byte in e:
-        return e[byte]
-    try:
-        return byte.decode()
-    except:
-        return f"\\x{byte[0]:02x}"
