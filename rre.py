@@ -10,7 +10,7 @@ def parse_partial(src, prev):
     elif src[0:1] == b'.':
         el = char_class([], invert=True)
         src = src[1:]
-    elif src[0:1] == b'\\':
+    elif len(src) > 1 and src[0:1] == b'\\' and src[1:2] in char_class.short_hands:
         src = src[1:]
         el = char_class.short_hands[src[0:1]].clone()
         src = src[1:]
@@ -89,6 +89,9 @@ class seq(expr):
 class const(expr):
     @classmethod
     def parse(cls, src):
+        if src[0:1] == b'\\':
+            src = src[1:]
+        assert len(src)
         return const(src[0:1]), src[1:]
 
     def __init__(self, src):
