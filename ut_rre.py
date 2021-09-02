@@ -2,9 +2,12 @@
 import unittest
 import rre
 
-# next steps in order, escape/short-hand sequences,
-#   named rules, terminal-match, terminal-match error messages,
-#   structured output, structure tags vs nodes
+# next steps in order
+#   -named rules
+#   -terminal-match
+#   -terminal-match error messages
+#   -structured output
+#   -structure tags vs nodes
 
 class TestRRE(unittest.TestCase):
     def test_const(self):
