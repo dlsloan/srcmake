@@ -345,6 +345,9 @@ class terminal(expr):
             message = b''
             src = src[1:]
             while len(src) and src[0:1] != b'}':
+                if src[0:1] == b'\\':
+                    assert len(src) > 1
+                    src = src[1:]
                 message += src[0:1]
                 src = src[1:]
         else:

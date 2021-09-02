@@ -137,5 +137,8 @@ class TestRRE(unittest.TestCase):
     def test_terminal_with_error_message(self):
         self.assertEqual(rre.parse(b'{!test:bad match message}'), rre.terminal(rre.const(b'test'), message=b'bad match message'))
 
+    def test_terminal_with_raw_escaped_error_message(self):
+        self.assertEqual(rre.parse(b'{!test:message{escape\\}}'), rre.terminal(rre.const(b'test'), message=b'message{escape}'))
+
 if __name__ == '__main__':
     unittest.main()
