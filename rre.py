@@ -91,6 +91,8 @@ class const(expr):
     def parse(cls, src):
         if src[0:1] == b'\\':
             src = src[1:]
+            if src[0:1] in escape_map:
+                return const(escape_map[src[0:1]]), src[1:]
         assert len(src)
         return const(src[0:1]), src[1:]
 
