@@ -145,7 +145,10 @@ class char_class(expr):
                 src = src[2:]
             elif src[0:1] == b'\\':
                 src = src[1:]
-                elements.extend(ch for ch in cls.short_hands[src[0:1]].set)
+                if src[0:1] in cls.short_hands:
+                    elements.extend(ch for ch in cls.short_hands[src[0:1]].set)
+                else:
+                    elements.append(src[0:1])
                 src = src[1:]
             else:
                 elements.append(src[0:1])
