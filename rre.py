@@ -20,6 +20,8 @@ def parse_partial(src, prev):
         prev = None
     elif src[0:1] == b'(':
         el, src = group.parse(src)
+    elif len(src) > 2 and src[0:2] == b'{:':
+        el, src = named.parse(src)
     elif src[0:1] in rep.short_hands or src[0:1] == b'{':
         el, src = rep.parse(src, prev)
         prev = None
@@ -306,6 +308,28 @@ class rep(expr):
 
     def __repr__(self):
         return f"rep({repr(self.inner)}, {self.min}, {self.max})"
+
+class named(expr):
+    @classmethod
+    def parse(cls, src):
+        assert src[0:2] == b'{:'
+        src = src[2:]
+        name = b''
+        while len(src) and src[0:1] != b'}':
+            name += src[0:1]
+            src = src[1:]
+        assert src[0:1] == b'}'
+        src = src[1:]
+        return named(name), src
+
+    def __init__(self, name):
+        self.name = name
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.name == other.name
+
+    def __repr__(self):
+        return f"named(\"{self.name}\")"
 
 class InvalidCombinationError(Exception):
     pass

@@ -129,5 +129,8 @@ class TestRRE(unittest.TestCase):
     def test_const_special_escapes(self):
         self.assertEqual(rre.parse(b'\\b\\t\\n\\r'), rre.const(b'\b\t\n\r'))
 
+    def test_named(self):
+        self.assertEqual(rre.parse(b'{:hello}'), rre.named(b'hello'))
+
 if __name__ == '__main__':
     unittest.main()
