@@ -134,5 +134,8 @@ class TestRRE(unittest.TestCase):
     def test_terminal(self):
         self.assertEqual(rre.parse(b'{!test}'), rre.terminal(rre.const(b'test')))
 
+    def test_terminal_with_error_message(self):
+        self.assertEqual(rre.parse(b'{!test:bad match message}'), rre.terminal(rre.const(b'test'), message=b'bad match message'))
+
 if __name__ == '__main__':
     unittest.main()

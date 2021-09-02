@@ -339,20 +339,32 @@ class terminal(expr):
         assert src[0:2] == b'{!'
         src = src[2:]
         inner = None
-        while len(src) and src[0:1] != b'}':
+        while len(src) and src[0:1] != b'}' and src[0:1] != b':':
             inner, src = parse_partial(src, inner)
+        if src[0:1] == b':':
+            message = b''
+            src = src[1:]
+            while len(src) and src[0:1] != b'}':
+                message += src[0:1]
+                src = src[1:]
+        else:
+            message = None
         assert src[0:1] == b'}'
         src = src[1:]
-        return terminal(inner), src
+        return terminal(inner, message=message), src
 
-    def __init__(self, inner):
+    def __init__(self, inner, *, message=None):
         self.inner = inner
+        self.message = message
 
     def __eq__(self, other):
         return type(self) == type(other) and self.inner == other.inner
 
     def __repr__(self):
-        return f"terminal({repr(self.inner)})"
+        if self.message is not None:
+            return f"terminal({repr(self.inner)}, message={self.message})"
+        else:
+            return f"terminal({repr(self.inner)})"
 
     def simplify(self):
         self.inner = self.inner.simplify()
