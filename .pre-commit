@@ -7,8 +7,11 @@ exec 1>&2
 
 # Run unit test suite
 PWD=`pwd`
-set -e
 /usr/bin/env python3 $PWD/ut.py
+R=$?
+if [ $R -ne 0 ]; then
+	exit $R
+fi
 
 if git rev-parse --verify HEAD >/dev/null 2>&1
 then

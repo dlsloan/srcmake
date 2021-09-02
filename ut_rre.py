@@ -2,7 +2,7 @@
 import unittest
 import rre
 
-# next steps in order, wild cards, escape/short-hand sequences,
+# next steps in order, escape/short-hand sequences,
 #   named rules, terminal-match, terminal-match error messages,
 #   structured output, structure tags vs nodes
 
