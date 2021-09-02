@@ -140,5 +140,8 @@ class TestRRE(unittest.TestCase):
     def test_terminal_with_raw_escaped_error_message(self):
         self.assertEqual(rre.parse(b'{!test:message{escape\\}}'), rre.terminal(rre.const(b'test'), message=b'message{escape}'))
 
+    def test_terminal_with_special_escaped_error_message(self):
+        self.assertEqual(rre.parse(b'{!test:message\\nline2}'), rre.terminal(rre.const(b'test'), message=b'message\nline2'))
+
 if __name__ == '__main__':
     unittest.main()

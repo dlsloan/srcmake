@@ -348,6 +348,10 @@ class terminal(expr):
                 if src[0:1] == b'\\':
                     assert len(src) > 1
                     src = src[1:]
+                    if src[0:1] in escape_map:
+                        message += escape_map[src[0:1]]
+                        src = src[1:]
+                        continue
                 message += src[0:1]
                 src = src[1:]
         else:
@@ -361,7 +365,7 @@ class terminal(expr):
         self.message = message
 
     def __eq__(self, other):
-        return type(self) == type(other) and self.inner == other.inner
+        return type(self) == type(other) and self.inner == other.inner and self.message == other.message
 
     def __repr__(self):
         if self.message is not None:
