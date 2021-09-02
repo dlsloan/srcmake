@@ -147,6 +147,8 @@ class char_class(expr):
                 src = src[1:]
                 if src[0:1] in cls.short_hands:
                     elements.extend(ch for ch in cls.short_hands[src[0:1]].set)
+                elif src[0:1] in escape_map:
+                    elements.append(escape_map[src[0:1]])
                 else:
                     elements.append(src[0:1])
                 src = src[1:]
@@ -302,3 +304,10 @@ class rep(expr):
 
 class InvalidCombinationError(Exception):
     pass
+
+escape_map = {
+    b'b': b'\b',
+    b't': b'\t',
+    b'n': b'\n',
+    b'r': b'\r',
+}

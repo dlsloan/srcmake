@@ -116,5 +116,9 @@ class TestRRE(unittest.TestCase):
         chars = [b'a', b']']
         self.assertEqual(rre.parse(b'[a\\]]'), rre.char_class([b'a', b']']))
 
+    def test_class_special_escapes(self):
+        chars = [b'\b', b'\t', b'\n', b'\r']
+        self.assertEqual(rre.parse(b'[\\b\\t\\n\\r]'), rre.char_class(chars))
+
 if __name__ == '__main__':
     unittest.main()
