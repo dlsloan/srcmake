@@ -103,5 +103,10 @@ class TestRRE(unittest.TestCase):
         self.assertEqual(rre.parse(b'\\d'), rre.char_class(chars))
         self.assertEqual(rre.parse(b'\\D'), rre.char_class(chars, invert=True))
 
+    def test_sh_whitespace(self):
+        chars = [b' ', b'\t', b'\r', b'\n']
+        self.assertEqual(rre.parse(b'\\s'), rre.char_class(chars))
+        self.assertEqual(rre.parse(b'\\S'), rre.char_class(chars, invert=True))
+
 if __name__ == '__main__':
     unittest.main()
