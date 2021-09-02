@@ -108,5 +108,9 @@ class TestRRE(unittest.TestCase):
         self.assertEqual(rre.parse(b'\\s'), rre.char_class(chars))
         self.assertEqual(rre.parse(b'\\S'), rre.char_class(chars, invert=True))
 
+    def test_sh_in_class(self):
+        chars = [b' ', b'\t', b'\r', b'\n']
+        self.assertEqual(rre.parse(b'[_\\s]'), rre.char_class([b'_'] + chars))
+
 if __name__ == '__main__':
     unittest.main()

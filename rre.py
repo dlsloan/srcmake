@@ -143,6 +143,10 @@ class char_class(expr):
             if src[0:1] == b'-' and src[1:2] != b']':
                 elements.extend(char_range(elements[-1], src[1:2]))
                 src = src[2:]
+            elif src[0:1] == b'\\':
+                src = src[1:]
+                elements.extend(ch for ch in cls.short_hands[src[0:1]].set)
+                src = src[1:]
             else:
                 elements.append(src[0:1])
                 src = src[1:]
