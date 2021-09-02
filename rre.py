@@ -12,7 +12,7 @@ def parse_partial(src, prev):
         src = src[1:]
     elif src[0:1] == b'\\':
         src = src[1:]
-        el = char_class(char_class.short_hands[src[0:1]])
+        el = char_class.short_hands[src[0:1]].clone()
         src = src[1:]
     elif src[0:1] == b'|':
         el = either(prev, None)
@@ -127,9 +127,6 @@ def as_ch(byte):
         return f"\\x{byte[0]:02x}"
 
 class char_class(expr):
-    short_hands = {
-        b'w': list(char_range(b'a', b'z') + char_range(b'A', b'Z') + char_range(b'0', b'9') + [b'_'])
-    }
     @classmethod
     def parse(cls, src):
         invert = False
@@ -168,6 +165,14 @@ class char_class(expr):
 
     def __repr__(self):
         return 'char_class("' + ''.join(as_ch(el) for el in self.set) + '")'
+
+    def clone(self):
+        return char_class(self.set)
+
+char_class.short_hands = {
+    b'w': char_class(char_range(b'a', b'z') + char_range(b'A', b'Z') + char_range(b'0', b'9') + [b'_']),
+    b'W': char_class(char_range(b'a', b'z') + char_range(b'A', b'Z') + char_range(b'0', b'9') + [b'_'], invert=True),
+}
 
 class either(expr):
     def __init__(self, *options):

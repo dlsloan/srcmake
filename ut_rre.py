@@ -95,5 +95,15 @@ class TestRRE(unittest.TestCase):
         chars.append(b'_')
         self.assertEqual(rre.parse(b'\\w'), rre.char_class(chars))
 
+    def test_sh_not_word(self):
+        chars = []
+        for i in range(26):
+            chars.append(bytes([b'a'[0] + i]))
+            chars.append(bytes([b'A'[0] + i]))
+        for i in range(10):
+            chars.append(bytes([b'0'[0] + i]))
+        chars.append(b'_')
+        self.assertEqual(rre.parse(b'\\W'), rre.char_class(chars, invert=True))
+
 if __name__ == '__main__':
     unittest.main()
