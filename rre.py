@@ -170,6 +170,8 @@ class char_class(expr):
         return char_class(self.set)
 
 char_class.short_hands = {
+    b'd': char_class(char_range(b'0', b'9')),
+    b'D': char_class(char_range(b'0', b'9'), invert=True),
     b'w': char_class(char_range(b'a', b'z') + char_range(b'A', b'Z') + char_range(b'0', b'9') + [b'_']),
     b'W': char_class(char_range(b'a', b'z') + char_range(b'A', b'Z') + char_range(b'0', b'9') + [b'_'], invert=True),
 }
