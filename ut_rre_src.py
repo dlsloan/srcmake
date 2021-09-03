@@ -143,5 +143,15 @@ class TestRRESRC(unittest.TestCase):
     def test_terminal_with_special_escaped_error_message(self):
         self.assertEqual(rre.parse(b'{!test:message\\nline2}'), rre.terminal(rre.const(b'test'), message=b'message\nline2'))
 
+    def test_env_parse(self):
+        env = rre.env.parse(b"""
+root:a*{:name}
+name:[ab]+
+        """)
+        self.assertEqual(env, {
+            b'root': rre.seq(rre.rep(rre.const(b'a'), 0, None), rre.named(b'name')),
+            b'name': rre.rep(rre.char_class([b'a', b'b']), 1, None),
+        })
+
 if __name__ == '__main__':
     unittest.main()

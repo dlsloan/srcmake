@@ -1,3 +1,14 @@
+class env:
+    @classmethod
+    def parse(cls, src):
+        rules = {}
+        for line in src.split(b'\n'):
+            if line.strip() == b'':
+                continue
+            i = line.index(b':')
+            rules[line[:i]] = parse(line[i+1:])
+        return rules
+
 def parse(src):
     el = None
     while len(src):
