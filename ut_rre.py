@@ -3,10 +3,10 @@ import unittest
 import rre
 
 # next steps in order
-#   -terminal-match
-#   -terminal-match error messages
+#   -rules to parser
 #   -structured output
 #   -structure tags vs nodes
+#   -parser optimization is O(len(rule)*len(input)) possible? i.e. O(n)
 
 class TestRRE(unittest.TestCase):
     def test_const(self):
