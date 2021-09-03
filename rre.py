@@ -115,6 +115,16 @@ class const(expr):
         else:
             raise InvalidCombinationError()
 
+    def fill_nfa(self, nfa_inst):
+        last_link = None
+        def compare_char(ch_val):
+            return lambda ch: ch == ch_val
+        for ch in self.val:
+            link = nfa_link(compare_char(ch))
+            nfa_inst.links.append(link)
+            nfa_inst = nfa()
+            link.next = nfa_inst
+
 def char_range(start, stop):
     return list(bytes([i]) for i in range(ord(start), ord(stop)+1))
 
@@ -386,3 +396,52 @@ escape_map = {
     b'n': b'\n',
     b'r': b'\r',
 }
+
+class nfa_link:
+    def __init__(self, match, next=None):
+        self.match = match
+        self.next = next
+
+class nfa:
+    def __init__(self, rre=None):
+        self.links = []
+        if rre is not None:
+            rre.fill_nfa(self)
+
+    def parse(self, data):
+        nodes = [nfa_node(self)]
+        for ch in data:
+            if nodes[-1].is_empty():
+                return None
+            nodes.append(nodes[-1].match(ch))
+        return match(text=data)
+
+
+class nfa_node:
+    def __init__(self, nfa=None):
+        self.states = {}
+        if nfa is not None:
+            self.states[nfa] = nfa_state(self, nfa)
+        self.ch = None
+
+    def match(self, ch):
+        self.ch = ch
+        node = nfa_node()
+        for nfa, state in self.states.items():
+            for link in nfa.links:
+                if link.match(ch):
+                    node.states[link.next] = nfa_state(self, link.next, prev=state)
+        return node
+
+    def is_empty(self):
+        return len(self.states) == 0
+
+class nfa_state:
+    def __init__(self, node, nfa, prev=None):
+        self.node = node
+        self.nfa = nfa
+        self.prev = prev
+
+class match:
+    def __init__(self, text):
+        self.text=text
