@@ -8,7 +8,7 @@ import rre
 #   -structure tags vs nodes
 #   -parser optimization is O(len(rule)*len(input)) possible? i.e. O(n)
 
-class TestRRE(unittest.TestCase):
+class TestRRESRC(unittest.TestCase):
     def test_const(self):
         self.assertEqual(rre.parse(b'test'), rre.const(b'test'))
 
