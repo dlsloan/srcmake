@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import unittest
-import ut_rre
+import ut_rre_src
 
 def test(ut):
     suite = unittest.TestLoader().loadTestsFromModule(ut)
@@ -9,4 +9,4 @@ def test(ut):
         exit(1)
 
 if __name__ == '__main__':
-    test(ut_rre)
+    test(ut_rre_src)
