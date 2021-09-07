@@ -294,6 +294,9 @@ class group(expr):
         self.inner = self.inner.simplify()
         return self
 
+    def to_nfa(self):
+        return self.inner.to_nfa()
+
 class rep(expr):
     short_hands = {
         b'*': (0, None),
