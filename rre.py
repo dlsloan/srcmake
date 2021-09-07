@@ -351,6 +351,23 @@ class rep(expr):
     def __repr__(self):
         return f"rep({repr(self.inner)}, {self.min}, {self.max})"
 
+    def to_nfa(self):
+        root = nfa.nfa()
+        if self.max is None:
+            var_count = None
+        else:
+            var_count = self.max - self.min
+        for i in range(self.min):
+            root.extend(self.inner.to_nfa())
+
+        if self.max is None:
+            root.loop_connect(root.terminal_nodes())
+        else:
+            branch = root
+            for i in range(var_count):
+                branch = branch.branch(self.inner.to_nfa())
+        return root
+
 class named(expr):
     @classmethod
     def parse(cls, src):

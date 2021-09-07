@@ -7,17 +7,65 @@ class nfa:
     def __init__(self, condition=None):
         self.condition = condition
         self.next = []
-        self.exits = [self]
+        self.terminal = True
+
+    def _terminal_nodes(self, touched):
+        if self in touched:
+            return []
+        touched.add(self)
+        ret = []
+        for node in self.next:
+            ret.extend(node._terminal_nodes(touched))
+        if self.terminal:
+            ret.append(self)
+        return ret
+
+    def terminal_nodes(self):
+        return self._terminal_nodes(set())
+
+    def _extend(self, extension, touched):
+        if self in touched:
+            return
+        touched.add(self)
+        for node in self.next:
+            node._extend(extension, touched)
+        if self.terminal:
+            self.next.extend(extension)
+            self.terminal = False
 
     def extend(self, extend_with):
         if type(extend_with) == type(self):
             extend_with = [extend_with]
-        for i in range(len(self.exits)):
-            if self.exits[i] == self:
-                self.exits[i].next.extend(extend_with)
-            else:
-                self.exits[i].extend(extend_with)
-        self.exits = list(extend_with)
+        self._extend(extend_with, set())
+
+    def _loop_connect(self, targ, touched):
+        if self in touched:
+            return
+        touched.add(self)
+        for node in self.next:
+            node._loop_connect(targ, touched)
+        if self.terminal:
+            self.next.extend(targ)
+
+    def loop_connect(self, targ):
+        if type(targ) == type(self):
+            targ = [targ]
+        self._loop_connect(targ, set())
+
+    def _branch(self, targ, touched):
+        if self in touched:
+            return
+        touched.add(self)
+        for node in self.next:
+            node._branch(targ, touched)
+        if self.terminal:
+            self.next.append(targ)
+
+    def branch(self, targ):
+        container = nfa()
+        container.extend(targ)
+        self._branch(targ, set())
+        return container
 
     def parse(self, src):
         steps = []
@@ -45,8 +93,9 @@ class nfa:
             else:
                 ch_pos += 1
         step = None
-        for node in steps[-1]:
-            if len(node.node.next) == 0:
+        to_check = steps[-1] if len(steps) else [nfa_link(None, self)]
+        for node in to_check:
+            if node.node.terminal:
                 step = node
                 break
         if step is None:
@@ -59,8 +108,8 @@ class nfa:
         tested.add(self)
         if self.condition is None:
             new_connections = []
-            for nfa_inst in self.next:
-                new_connections.extend(nfa_inst.test(ch, tested, prev))
+            for node in self.next:
+                new_connections.extend(node.test(ch, tested, prev))
             return new_connections
         elif self.condition(ch):
             return [nfa_link(prev, self)]

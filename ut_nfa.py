@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from typing import Match
 import unittest
 import rre
 import nfa
@@ -71,3 +72,34 @@ class TestRREAST(unittest.TestCase):
         self.assertEqual(err.ch, 2)
         self.assertEqual(err.line, 0)
         self.assertEqual(err.partial.text, b'ab')
+
+    def test_nfa_count_unbounded(self):
+        parser = rre.parse(b'a+').to_nfa()
+        match = parser.parse(b'a')
+        self.assertEqual(match.text, b'a')
+        match = parser.parse(b'aaa')
+        self.assertEqual(match.text, b'aaa')
+        with self.assertRaises(nfa.ParsingError) as err_ctx:
+            parser.parse(b'aab')
+        err = err_ctx.exception
+        self.assertEqual(err.ch, 2)
+        self.assertEqual(err.partial.text, b'aa')
+        with self.assertRaises(nfa.ParsingError) as err_ctx:
+            parser.parse(b'')
+
+    def test_nfa_count_bounded(self):
+        parser = rre.parse(b'a{1,3}').to_nfa()
+        with self.assertRaises(nfa.ParsingError):
+            parser.parse(b'')
+        self.assertEqual(parser.parse(b'a').text, b'a')
+        self.assertEqual(parser.parse(b'aa').text, b'aa')
+        self.assertEqual(parser.parse(b'aaa').text, b'aaa')
+        with self.assertRaises(nfa.ParsingError):
+            parser.parse(b'aaaa')
+
+    def test_nfa_count_none(self):
+        parser = rre.parse(b'a?').to_nfa()
+        self.assertEqual(parser.parse(b'').text, b'')
+        self.assertEqual(parser.parse(b'a').text, b'a')
+        with self.assertRaises(nfa.ParsingError):
+            parser.parse(b'aa')
