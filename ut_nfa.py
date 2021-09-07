@@ -58,3 +58,16 @@ class TestRREAST(unittest.TestCase):
             match_c = parser.parse(b'_est')
         self.assertEqual(match_a.text, b'test')
         self.assertEqual(match_b.text, b'Test')
+
+    def test_rre_either(self):
+        parser = rre.parse(b'abc|def').to_nfa()
+        match_a = parser.parse(b'abc')
+        match_b = parser.parse(b'def')
+        with self.assertRaises(nfa.ParsingError) as err_ctx:
+            parser.parse(b'ab')
+        self.assertEqual(match_a.text, b'abc')
+        self.assertEqual(match_b.text, b'def')
+        err = err_ctx.exception
+        self.assertEqual(err.ch, 2)
+        self.assertEqual(err.line, 0)
+        self.assertEqual(err.partial.text, b'ab')

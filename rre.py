@@ -263,6 +263,12 @@ class either(expr):
         else:
             self.options[-1] = fn(self.options[-1])
 
+    def to_nfa(self):
+        root = nfa.nfa()
+        nfa_opts = list(opt.to_nfa() for opt in self.options)
+        root.extend(nfa_opts)
+        return root
+
 class group(expr):
     @classmethod
     def parse(cls, src):

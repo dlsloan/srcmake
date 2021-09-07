@@ -9,13 +9,15 @@ class nfa:
         self.next = []
         self.exits = [self]
 
-    def extend(self, nfa_inst):
+    def extend(self, extend_with):
+        if type(extend_with) == type(self):
+            extend_with = [extend_with]
         for i in range(len(self.exits)):
             if self.exits[i] == self:
-                self.exits[i].next.append(nfa_inst)
+                self.exits[i].next.extend(extend_with)
             else:
-                self.exits[i].extend(nfa_inst)
-            self.exits[i] = nfa_inst
+                self.exits[i].extend(extend_with)
+        self.exits = list(extend_with)
 
     def parse(self, src):
         steps = []
