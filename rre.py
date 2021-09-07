@@ -1,3 +1,5 @@
+import nfa
+
 class env:
     @classmethod
     def parse(cls, src):
@@ -101,6 +103,12 @@ class seq(expr):
         else:
             self.sequence[-1] = fn(self.sequence[-1])
 
+    def to_nfa(self):
+        root = nfa.nfa()
+        for el in self.sequence:
+            root.extend(el.to_nfa())
+        return root
+
 class const(expr):
     @classmethod
     def parse(cls, src):
@@ -126,15 +134,13 @@ class const(expr):
         else:
             raise InvalidCombinationError()
 
-    def fill_nfa(self, nfa_inst):
-        last_link = None
-        def compare_char(ch_val):
+    def to_nfa(self):
+        root = nfa.nfa()
+        def cmp_ch(ch_val):
             return lambda ch: ch == ch_val
         for ch in self.val:
-            link = nfa_link(compare_char(ch))
-            nfa_inst.links.append(link)
-            nfa_inst = nfa()
-            link.next = nfa_inst
+            root.extend(nfa.nfa(cmp_ch(ch)))
+        return root
 
 def char_range(start, stop):
     return list(bytes([i]) for i in range(ord(start), ord(stop)+1))
@@ -207,6 +213,13 @@ class char_class(expr):
 
     def clone(self):
         return char_class(self.set)
+
+    def to_nfa(self):
+        root = nfa.nfa()
+        def cmp_ch(ch_opts):
+            return lambda ch: ch in ch_opts
+        root.extend(nfa.nfa(cmp_ch(set(ch[0] for ch in self.set))))
+        return root
 
 char_class.short_hands = {
     b'd': char_class(char_range(b'0', b'9')),
@@ -407,52 +420,3 @@ escape_map = {
     b'n': b'\n',
     b'r': b'\r',
 }
-
-class nfa_link:
-    def __init__(self, match, next=None):
-        self.match = match
-        self.next = next
-
-class nfa:
-    def __init__(self, rre=None):
-        self.links = []
-        if rre is not None:
-            rre.fill_nfa(self)
-
-    def parse(self, data):
-        nodes = [nfa_node(self)]
-        for ch in data:
-            if nodes[-1].is_empty():
-                return None
-            nodes.append(nodes[-1].match(ch))
-        return match(text=data)
-
-
-class nfa_node:
-    def __init__(self, nfa=None):
-        self.states = {}
-        if nfa is not None:
-            self.states[nfa] = nfa_state(self, nfa)
-        self.ch = None
-
-    def match(self, ch):
-        self.ch = ch
-        node = nfa_node()
-        for nfa, state in self.states.items():
-            for link in nfa.links:
-                if link.match(ch):
-                    node.states[link.next] = nfa_state(self, link.next, prev=state)
-        return node
-
-    def is_empty(self):
-        return len(self.states) == 0
-
-class nfa_state:
-    def __init__(self, node, nfa, prev=None):
-        self.node = node
-        self.nfa = nfa
-        self.prev = prev
-
-class match:
-    def __init__(self, text):
-        self.text=text
