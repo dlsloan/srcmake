@@ -391,7 +391,7 @@ class named(expr):
         return type(self) == type(other) and self.name == other.name
 
     def __repr__(self):
-        return f"named(\"{self.name}\")"
+        return f"named({self.name})"
 
 class terminal(expr):
     @classmethod
