@@ -361,6 +361,11 @@ class nfa_parser:
         roots = []
         for i in range(len(step.stack) + 1):
             roots.append([])
+        # terminal pops are special (index is off by one from others)
+        while len(step.stack_actions) and type(step.stack_actions[-1]) == stack_pop:
+            roots.append([])
+            end_positions.append(self.indexer[step.index])
+            step.stack_actions = step.stack_actions[:-1]
 
         while step is not None:
             while len(step.stack_actions):
