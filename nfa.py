@@ -261,7 +261,14 @@ class pop_nfa(nfa):
         return stack[-1].is_terminal(stack[:-1])
 
     def _can_terminate_empty(self, stack, tested, env):
-        return stack[-1]._can_terminate_empty_inner(stack[:-1], tested, env)
+        ref_node = stack[-1]
+        stack = stack[:-1]
+        if ref_node.is_terminal(stack):
+            return True
+        for node in ref_node.next:
+            if node._can_terminate_empty_inner(stack, tested, env):
+                return True
+        return False
 
     def clone_empty(self):
         return pop_nfa()
@@ -332,7 +339,7 @@ class nfa_parser:
                 raise ParsingError(*self.indexer[-1], partial=self.gen_match(self.last_active[0]))
         self.active.append(None)
         for step in self.active:
-            if step is None or step.node == nfa.END_NFA:
+            if step is None or step.node == nfa.END_NFA or step.node.can_terminate_empty(step.stack):
                 break
         if step is None:
             raise ParsingError(self.ch, self.line, self.index, partial=self.gen_match(self.active[0]))

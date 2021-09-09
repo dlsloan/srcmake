@@ -161,6 +161,29 @@ class TestRREAST(unittest.TestCase):
         with self.assertRaises(nfa.ParsingError):
             parser.parse(b'abc')
 
+    def test_nfa_nested_named_single_char(self):
+        # Test push+pop on last nfa node edge-case
+        env = rre.env.parse(b'name:[a-z]+\nfull_name:{:name} {:name}')
+        parser = rre.parse(b'{:full_name}').to_nfa()
+        match = parser.parse(b'abc e', env=env)
+        self.assertEqual(match.text, b'abc e')
+        self.assertEqual(len(match.named), 1)
+        self.assertEqual(match.named[0].text, b'abc e')
+        self.assertEqual(match.named[0].ch, 0)
+        self.assertEqual(match.named[0].line, 0)
+        self.assertEqual(match.named[0].name, b'full_name')
+        self.assertEqual(len(match.named[0].named), 2)
+        self.assertEqual(match.named[0].named[0].text, b'abc')
+        self.assertEqual(match.named[0].named[0].ch, 0)
+        self.assertEqual(match.named[0].named[0].line, 0)
+        self.assertEqual(match.named[0].named[0].name, b'name')
+        self.assertEqual(match.named[0].named[1].text, b'e')
+        self.assertEqual(match.named[0].named[1].ch, 4)
+        self.assertEqual(match.named[0].named[1].line, 0)
+        self.assertEqual(match.named[0].named[1].name, b'name')
+        with self.assertRaises(nfa.ParsingError):
+            parser.parse(b'abc')
+
 
 if __name__ == '__main__':
     unittest.main()
