@@ -2,7 +2,7 @@ import collections
 import threading
 
 nfa_link = collections.namedtuple('nfa_link', ('prev', 'node'))
-nfa_match = collections.namedtuple('nfa_match', ('text', 'ch', 'line'))
+nfa_match = collections.namedtuple('nfa_match', ('text', 'ch', 'line', 'named', 'name'), defaults=(None,))
 
 _local = threading.local()
 
@@ -254,7 +254,7 @@ class pop_nfa(nfa):
         upper = stack[-1]
         results = []
         for node in upper.next:
-            results.extend(node.test(in_ch, stack[:-1], stack_actions + (stack_pop(),), tested, env=self.env))
+            results.extend(node.test(in_ch, stack[:-1], stack_actions + (stack_pop(stack[-1]),), tested, env=self.env))
         return results, True
 
     def is_terminal(self, stack):
@@ -279,7 +279,8 @@ class stack_push:
 
 
 class stack_pop:
-    pass
+    def __init__(self, node):
+        self.node = node
 
 
 class nfa_step:
@@ -354,7 +355,31 @@ class nfa_parser:
         self.active = next_active
 
     def gen_match(self, step):
-        return nfa_match(self.text[:step.index], 0, 0)
+        self.indexer.append(doc_pos(self.ch, self.line, self.index))
+        root_end = step.index
+        end_positions = [self.indexer[step.index]] * len(step.stack)
+        roots = []
+        for i in range(len(step.stack) + 1):
+            roots.append([])
+
+        while step is not None:
+            while len(step.stack_actions):
+                action = step.stack_actions[-1]
+                step.stack_actions = step.stack_actions[:-1]
+                if type(action) == stack_push:
+                    start_pos = self.indexer[step.index-1]
+                    inner = nfa_match(self.text[step.index-1:end_positions[-1].index], start_pos.ch, start_pos.line, [], name=action.node.name)
+                    inner.named.extend(roots[-1])
+                    roots = roots[:-1]
+                    roots[-1].insert(0, inner)
+                    end_positions = end_positions[:-1]
+                else:
+                    assert type(action) == stack_pop
+                    roots.append([])
+                    end_positions.append(self.indexer[step.index-1])
+            step = step.prev
+        assert len(roots) == 1
+        return nfa_match(self.text[:root_end], 0, 0, named=roots[0])
 
 
 class ParsingError(Exception):

@@ -116,12 +116,26 @@ class TestRREAST(unittest.TestCase):
         parser = rre.parse(b'{:name}').to_nfa()
         match = parser.parse(b'abc', env=env)
         self.assertEqual(match.text, b'abc')
+        self.assertEqual(len(match.named), 1)
+        self.assertEqual(match.named[0].text, b'abc')
+        self.assertEqual(match.named[0].ch, 0)
+        self.assertEqual(match.named[0].line, 0)
+        self.assertEqual(match.named[0].name, b'name')
 
     def test_nfa_multi_named(self):
         env = rre.env.parse(b'name:[a-z]+\nid:[0-9]{1,2}')
         parser = rre.parse(b'{:name}{:id}').to_nfa()
         match = parser.parse(b'abc01', env=env)
         self.assertEqual(match.text, b'abc01')
+        self.assertEqual(len(match.named), 2)
+        self.assertEqual(match.named[0].text, b'abc')
+        self.assertEqual(match.named[0].ch, 0)
+        self.assertEqual(match.named[0].line, 0)
+        self.assertEqual(match.named[0].name, b'name')
+        self.assertEqual(match.named[1].text, b'01')
+        self.assertEqual(match.named[1].ch, 3)
+        self.assertEqual(match.named[1].line, 0)
+        self.assertEqual(match.named[1].name, b'id')
         with self.assertRaises(nfa.ParsingError):
             parser.parse(b'abc')
 
