@@ -6,6 +6,15 @@ nfa_match = collections.namedtuple('nfa_match', ('text', 'ch', 'line'))
 
 _local = threading.local()
 
+def human_id(self):
+    if id(self) not in human_id.ids:
+        human_id.ids[id(self)] = human_id.count
+        human_id.count += 1
+    return human_id.ids[id(self)]
+
+human_id.count = 0
+human_id.ids = {}
+
 def once(_def=None):
     def once_dec(fn):
         def once_wrap(self, *pargs, **kargs):
@@ -76,20 +85,23 @@ class nfa:
     def is_terminal(self, stack):
         return self._terminal
 
-    def can_terminate_empty(self, stack):
-        return self._can_terminate_empty_inner(stack, set())
+    def can_terminate_empty(self, stack, env=None):
+        return self._can_terminate_empty_inner(stack, set(), env)
 
-    def _can_terminate_empty_inner(self, stack, tested):
+    def _can_terminate_empty_inner(self, stack, tested, env):
         if (self, stack) in tested:
             return False
+        if env is not None and env != self.env:
+            self.env = env
+            self.set_env(env)
         tested.add((self, stack))
-        return self._can_terminate_empty(stack, tested)
+        return self._can_terminate_empty(stack, tested, env)
 
-    def _can_terminate_empty(self, stack, tested):
+    def _can_terminate_empty(self, stack, tested, env):
         if self.is_terminal(stack):
             return True
         for node in self.next:
-            if node._can_terminate_empty_inner(stack, tested):
+            if node._can_terminate_empty_inner(stack, tested, env):
                 return True
         return False
 
@@ -168,6 +180,12 @@ class nfa:
         parser = nfa_parser(self, env=env)
         return parser.parse(text)
 
+    def __repr__(self):
+        if self == nfa.END_NFA:
+            return "nfa(END)"
+        else:
+            return f"nfa({self._terminal}, {self.next})"
+
 nfa.END_NFA = nfa()
 
 
@@ -182,7 +200,7 @@ class value_nfa(nfa):
         else:
             return [], False
 
-    def _can_terminate_empty(self, stack, tested):
+    def _can_terminate_empty(self, stack, tested, env):
         return False
 
     def _partial_clone(self, partials):
@@ -198,6 +216,9 @@ class value_nfa(nfa):
         super().copy_non_ref_to(target)
         target.condition = self.condition
 
+    def __repr__(self):
+        return f"vnfa({human_id(self)})"
+
 
 class ref_nfa(nfa):
     def __init__(self, name):
@@ -209,7 +230,10 @@ class ref_nfa(nfa):
         self.ref = env.get_inner(self.name)
 
     def _test(self, in_ch, stack, stack_actions, tested):
-        return self.ref.test(in_ch, stack + (self,), stack_actions + (stack_push(self),), tested, env=self.env), True
+        return self.ref.test(in_ch, stack + (self,), stack_actions + (stack_push(self),), tested, env=self.env), False
+
+    def _can_terminate_empty(self, stack, tested, env):
+        return self.ref._can_terminate_empty_inner(stack + (self, ), tested, env)
 
     def clone_empty(self):
         return ref_nfa(None)
@@ -217,6 +241,9 @@ class ref_nfa(nfa):
     def copy_non_ref_to(self, target):
         super().copy_non_ref_to(target)
         target.name = self.name
+
+    def __repr__(self):
+        return f"rnfa({self._terminal}, {self.name}, {self.next})"
 
 
 class pop_nfa(nfa):
@@ -233,11 +260,14 @@ class pop_nfa(nfa):
     def is_terminal(self, stack):
         return stack[-1].is_terminal(stack[:-1])
 
-    def _can_terminate_empty(self, stack, tested):
-        return stack[-1]._can_terminate_empty_inner(stack[:-1], tested)
+    def _can_terminate_empty(self, stack, tested, env):
+        return stack[-1]._can_terminate_empty_inner(stack[:-1], tested, env)
 
     def clone_empty(self):
         return pop_nfa()
+
+    def __repr__(self):
+        return f"pnfa()"
 
 
 doc_pos = collections.namedtuple('doc_pos', ('ch', 'line', 'index'))
@@ -279,12 +309,13 @@ class nfa_result:
         self.stack_actions = stack_actions
 
 
+# TODO: Checks for infinite empty recursion
 class nfa_parser:
     def __init__(self, root, env=None):
         self.root = root
         self.env = env
         self.active = [nfa_step(root, index=0)]
-        if self.active[0].node.can_terminate_empty(tuple()):
+        if self.active[0].node.can_terminate_empty(tuple(), env=env):
             self.active.append(nfa_step(nfa.END_NFA, index=0))
         self.last_active = None
         self.indexer = []

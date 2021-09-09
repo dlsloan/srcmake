@@ -117,5 +117,14 @@ class TestRREAST(unittest.TestCase):
         match = parser.parse(b'abc', env=env)
         self.assertEqual(match.text, b'abc')
 
+    def test_nfa_multi_named(self):
+        env = rre.env.parse(b'name:[a-z]+\nid:[0-9]{1,2}')
+        parser = rre.parse(b'{:name}{:id}').to_nfa()
+        match = parser.parse(b'abc01', env=env)
+        self.assertEqual(match.text, b'abc01')
+        with self.assertRaises(nfa.ParsingError):
+            parser.parse(b'abc')
+
+
 if __name__ == '__main__':
     unittest.main()
