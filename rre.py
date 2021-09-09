@@ -9,7 +9,46 @@ class env:
                 continue
             i = line.index(b':')
             rules[line[:i]] = parse(line[i+1:])
-        return rules
+        return env(rules)
+
+    def __init__(self, rules):
+        self.rules = dict(rules)
+        self.nfas = {}
+        self.inner_nfas = {}
+
+    def __iter__(self):
+        for k in self.rules:
+            yield k
+
+    def __len__(self):
+        return len(self.rules)
+
+    def __getitem__(self, key):
+        return self.rules.__getitem__(key)
+
+    def __setitem__(self, key, value):
+        self.rules.__setitem__(key, value)
+
+    def __eq__(self, other):
+        if type(other) != type(self):
+            return False
+        return self.rules == other.rules
+
+    def __repr__(self):
+        return f"env({repr(self.rules)})"
+
+    def get_nfa(self, name):
+        if name not in self.nfas:
+            self.nfas[name] = self.rules[name].to_nfa()
+        return self.nfas[name]
+
+    def get_inner(self, name):
+        if name not in self.inner_nfas:
+            self.inner_nfas[name] = self.get_nfa(name).clone()
+            self.inner_nfas[name].extend(nfa.pop_nfa())
+        return self.inner_nfas[name]
+
+
 
 def parse(src):
     el = None
@@ -139,7 +178,7 @@ class const(expr):
         def cmp_ch(ch_val):
             return lambda ch: ch == ch_val
         for ch in self.val:
-            root.extend(nfa.nfa(cmp_ch(ch)))
+            root.extend(nfa.value_nfa(cmp_ch(ch)))
         return root
 
 def char_range(start, stop):
@@ -215,11 +254,9 @@ class char_class(expr):
         return char_class(self.set)
 
     def to_nfa(self):
-        root = nfa.nfa()
         def cmp_ch(ch_opts):
             return lambda ch: ch in ch_opts
-        root.extend(nfa.nfa(cmp_ch(set(ch[0] for ch in self.set))))
-        return root
+        return nfa.value_nfa(cmp_ch(set(ch[0] for ch in self.set)))
 
 char_class.short_hands = {
     b'd': char_class(char_range(b'0', b'9')),
@@ -392,6 +429,9 @@ class named(expr):
 
     def __repr__(self):
         return f"named({self.name})"
+
+    def to_nfa(self):
+        return nfa.ref_nfa(self.name)
 
 class terminal(expr):
     @classmethod

@@ -148,10 +148,10 @@ class TestRRESRC(unittest.TestCase):
 root:a*{:name}
 name:[ab]+
         """)
-        self.assertEqual(env, {
+        self.assertEqual(env, rre.env({
             b'root': rre.seq(rre.rep(rre.const(b'a'), 0, None), rre.named(b'name')),
             b'name': rre.rep(rre.char_class([b'a', b'b']), 1, None),
-        })
+        }))
 
 if __name__ == '__main__':
     unittest.main()

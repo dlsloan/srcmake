@@ -110,3 +110,12 @@ class TestRREAST(unittest.TestCase):
         self.assertEqual(parser.parse(b'a').text, b'a')
         with self.assertRaises(nfa.ParsingError):
             parser.parse(b'aa')
+
+    def test_nfa_named(self):
+        env = rre.env.parse(b'name:[a-z]+')
+        parser = rre.parse(b'{:name}').to_nfa()
+        match = parser.parse(b'abc', env=env)
+        self.assertEqual(match.text, b'abc')
+
+if __name__ == '__main__':
+    unittest.main()
