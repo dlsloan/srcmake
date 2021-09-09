@@ -61,8 +61,8 @@ class nfa:
         if id(self) in partials:
             return
         partial = self.clone_empty()
-        self.copy_non_ref_to(partial)
         partials[id(self)] = partial
+        self.copy_non_ref_to(partial)
         for node in self.next:
             node._partial_clone(partials)
         return
@@ -246,6 +246,42 @@ class ref_nfa(nfa):
         return f"rnfa({self._terminal}, {self.name}, {self.next})"
 
 
+class err_mark_nfa(nfa):
+    def __init__(self, inner, err_message):
+        super().__init__()
+        self.ref = inner
+        self.err_message = err_message
+
+    def _test(self, in_ch, stack, stack_actions, tested):
+        return self.ref.test(in_ch, stack + (self,), stack_actions + (stack_push(self),), tested, env=self.env), False
+
+    def _can_terminate_empty(self, stack, tested, env):
+        return self.ref._can_terminate_empty_inner(stack + (self, ), tested, env)
+
+    def clone_empty(self):
+        return ref_nfa(None)
+
+    def copy_non_ref_to(self, target):
+        super().copy_non_ref_to(target)
+        target.err_message = self.err_message
+
+    def _partial_clone(self, partials):
+        if id(self) in partials:
+            return
+        super()._partial_clone(partials)
+        self.ref._partial_clone(partials)
+
+    def _finish_clone(self, partials, complete):
+        if id(self) in complete:
+            return
+        partial = super()._finish_clone(partials, complete)
+        partial.ref = partials[id(self.ref)]
+        partial.ref._finish_clone(partials, complete)
+        return partial
+
+    def __repr__(self):
+        return f"errnfa({self._terminal}, {self.ref}, {self.err_message}, {self.next})"
+
 class pop_nfa(nfa):
     def __init__(self):
         super().__init__()
@@ -336,14 +372,34 @@ class nfa_parser:
         for in_ch in text:
             self.parse_ch(in_ch)
             if not len(self.active):
-                raise ParsingError(*self.indexer[-1], partial=self.gen_match(self.last_active[0]))
+                self.raiseParsingError(self.last_active)
+        self.indexer.append(doc_pos(self.ch, self.line, self.index))
         self.active.append(None)
         for step in self.active:
             if step is None or step.node == nfa.END_NFA or step.node.can_terminate_empty(step.stack):
                 break
         if step is None:
-            raise ParsingError(self.ch, self.line, self.index, partial=self.gen_match(self.active[0]))
+                self.raiseParsingError(self.active)
         return self.gen_match(step)
+
+    def raiseParsingError(self, active):
+        message = None
+        step = None
+        for step in active:
+            if step is None:
+                continue
+            if type(step.node) == err_mark_nfa:
+                message = step.node.err_message
+                break
+            for node in reversed(step.stack):
+                if type(node) == err_mark_nfa:
+                    message = node.err_message
+                    break
+            if message is not None:
+                break
+        if step is None:
+            step = active[0]
+        raise ParsingError(*self.indexer[-1], partial=self.gen_match(step), msg=message)
 
     def parse_ch(self, in_ch):
         self.indexer.append(doc_pos(self.ch, self.line, self.index))
@@ -380,10 +436,11 @@ class nfa_parser:
                 step.stack_actions = step.stack_actions[:-1]
                 if type(action) == stack_push:
                     start_pos = self.indexer[step.index-1]
-                    inner = nfa_match(self.text[step.index-1:end_positions[-1].index], start_pos.ch, start_pos.line, [], name=action.node.name)
-                    inner.named.extend(roots[-1])
+                    if type(action.node) == ref_nfa:
+                        inner = nfa_match(self.text[step.index-1:end_positions[-1].index], start_pos.ch, start_pos.line, [], name=action.node.name)
+                        inner.named.extend(roots[-1])
+                        roots[-2].insert(0, inner)
                     roots = roots[:-1]
-                    roots[-1].insert(0, inner)
                     end_positions = end_positions[:-1]
                 else:
                     assert type(action) == stack_pop
@@ -401,3 +458,4 @@ class ParsingError(Exception):
         self.line = line
         self.index = index
         self.partial = partial
+        self.message = msg

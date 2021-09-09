@@ -184,6 +184,29 @@ class TestRREAST(unittest.TestCase):
         with self.assertRaises(nfa.ParsingError):
             parser.parse(b'abc')
 
+    def test_terminal_error(self):
+        parser = rre.parse(b'abc{!test:message}').to_nfa()
+        match = parser.parse(b'abctest')
+        self.assertEqual(match.text, b'abctest')
+
+        with self.assertRaises(nfa.ParsingError) as err_ctx:
+            parser.parse(b'abc')
+        err = err_ctx.exception
+        self.assertEqual(err.message, b'message')
+        self.assertEqual(err.ch, 3)
+
+        with self.assertRaises(nfa.ParsingError) as err_ctx:
+            parser.parse(b'abctes')
+        err = err_ctx.exception
+        self.assertEqual(err.message, b'message')
+        self.assertEqual(err.ch, 6)
+
+        with self.assertRaises(nfa.ParsingError) as err_ctx:
+            parser.parse(b'abctess')
+        err = err_ctx.exception
+        self.assertEqual(err.message, b'message')
+        self.assertEqual(err.ch, 6)
+
 
 if __name__ == '__main__':
     unittest.main()

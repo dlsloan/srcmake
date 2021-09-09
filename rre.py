@@ -477,6 +477,9 @@ class terminal(expr):
         self.inner = self.inner.simplify()
         return self
 
+    def to_nfa(self):
+        return nfa.err_mark_nfa(self.inner.to_nfa(), err_message=self.message)
+
 class InvalidCombinationError(Exception):
     pass
 
