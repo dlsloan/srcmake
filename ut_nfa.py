@@ -207,6 +207,19 @@ class TestRREAST(unittest.TestCase):
         self.assertEqual(err.message, b'message')
         self.assertEqual(err.ch, 6)
 
+    def test_recursion(self):
+        env = rre.env.parse(b'test:\\+({:test}|\\.)')
+        parser = rre.parse(b'{:test}').to_nfa()
+        match = parser.parse(b'+.', env=env)
+        self.assertEqual(match.text, b'+.')
+        match = parser.parse(b'++.', env=env)
+        self.assertEqual(match.text, b'++.')
+        self.assertEqual(match.named[0].text, b'++.')
+        self.assertEqual(match.named[0].named[0].text, b'+.')
+        match = parser.parse(b'+++.', env=env)
+        self.assertEqual(match.text, b'+++.')
+
+
 
 if __name__ == '__main__':
     unittest.main()
