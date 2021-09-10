@@ -91,6 +91,8 @@ class nfa:
     def _can_terminate_empty_inner(self, stack, tested, env):
         if (self, stack) in tested:
             return False
+        if type(self) == ref_nfa and self in stack:
+            return False
         if env is not None and env != self.env:
             self.env = env
             self.set_env(env)
@@ -159,6 +161,12 @@ class nfa:
         if (self, stack) in tested:
             return []
         tested.add((self, stack))
+
+        if type(self) == ref_nfa:
+            for action in stack_actions:
+                if type(action) == stack_push:
+                    if (action.node == self):
+                        return []
 
         if env is not None and env != self.env:
             self.env = env

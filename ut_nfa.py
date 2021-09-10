@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from re import match
 from typing import Match
 import unittest
 import rre
@@ -219,6 +220,19 @@ class TestRREAST(unittest.TestCase):
         match = parser.parse(b'+++.', env=env)
         self.assertEqual(match.text, b'+++.')
 
+    def test_invalid_recursion_error(self):
+        env = rre.env.parse(b'test:{:test}a')
+        parser = rre.parse(b'{:test}').to_nfa()
+        with self.assertRaises(nfa.ParsingError):
+            parser.parse(b'aa', env=env)
+
+    def test_invalid_recursion_with_valid(self):
+        env = rre.env.parse(b'test:b|a{:test}')
+        parser = rre.parse(b'{:test}').to_nfa()
+        with self.assertRaises(nfa.ParsingError):
+            parser.parse(b'aa', env=env)
+        match = parser.parse(b'ab')
+        self.assertEqual(match.text, b'ab')
 
 
 if __name__ == '__main__':
