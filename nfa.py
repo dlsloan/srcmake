@@ -267,7 +267,7 @@ class err_mark_nfa(nfa):
         return self.ref._can_terminate_empty_inner(stack + (self, ), tested, env)
 
     def clone_empty(self):
-        return ref_nfa(None)
+        return err_mark_nfa(None, None)
 
     def copy_non_ref_to(self, target):
         super().copy_non_ref_to(target)
@@ -284,7 +284,7 @@ class err_mark_nfa(nfa):
             return
         partial = super()._finish_clone(partials, complete)
         partial.ref = partials[id(self.ref)]
-        partial.ref._finish_clone(partials, complete)
+        self.ref._finish_clone(partials, complete)
         return partial
 
     def __repr__(self):
@@ -376,11 +376,21 @@ class nfa_parser:
         self.index = 0
 
     def parse(self, text):
+        if len(text) == 0 or text[-1] != 0:
+            text += b'\0'
         self.text = text
         for in_ch in text:
             self.parse_ch(in_ch)
             if not len(self.active):
-                self.raiseParsingError(self.last_active)
+                if in_ch != 0:
+                    self.raiseParsingError(self.last_active)
+                else:
+                    self.ch = self.indexer[-1].ch
+                    self.line = self.indexer[-1].line
+                    self.index = self.indexer[-1].index
+                    self.indexer = self.indexer[:-1]
+                    self.active = self.last_active
+                    break
         self.indexer.append(doc_pos(self.ch, self.line, self.index))
         self.active.append(None)
         for step in self.active:
@@ -445,7 +455,10 @@ class nfa_parser:
                 if type(action) == stack_push:
                     start_pos = self.indexer[step.index-1]
                     if type(action.node) == ref_nfa:
-                        inner = nfa_match(self.text[step.index-1:end_positions[-1].index], start_pos.ch, start_pos.line, [], name=action.node.name)
+                        text = self.text[step.index-1:end_positions[-1].index]
+                        if len(text) and text[-1] == 0:
+                            text = text[:-1]
+                        inner = nfa_match(text, start_pos.ch, start_pos.line, [], name=action.node.name)
                         inner.named.extend(roots[-1])
                         roots[-2].insert(0, inner)
                     roots = roots[:-1]
@@ -456,7 +469,10 @@ class nfa_parser:
                     end_positions.append(self.indexer[step.index-1])
             step = step.prev
         assert len(roots) == 1
-        return nfa_match(self.text[:root_end], 0, 0, named=roots[0])
+        text = self.text[:root_end]
+        if len(text) and text[-1] == 0:
+            text = text[:-1]
+        return nfa_match(text, 0, 0, named=roots[0])
 
 
 class ParsingError(Exception):

@@ -488,4 +488,5 @@ escape_map = {
     b't': b'\t',
     b'n': b'\n',
     b'r': b'\r',
+    b'0': b'\0',
 }

@@ -234,6 +234,11 @@ class TestRREAST(unittest.TestCase):
         match = parser.parse(b'ab')
         self.assertEqual(match.text, b'ab')
 
+    def test_eof(self):
+        parser = rre.parse(b'a+\\0').to_nfa()
+        match = parser.parse(b'aaa')
+        self.assertEqual(match.text, b'aaa')
+
 
 if __name__ == '__main__':
     unittest.main()
