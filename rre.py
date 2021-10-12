@@ -49,7 +49,6 @@ class env:
         return self.inner_nfas[name]
 
 
-
 def parse(src):
     el = None
     while len(src):
@@ -401,7 +400,12 @@ class rep(expr):
             root.extend(self.inner.to_nfa())
 
         if self.max is None:
-            root.loop_connect(root.terminal_nodes())
+            if self.min == 0:
+                inner_nfa = self.inner.to_nfa()
+                root.extend([inner_nfa, nfa.nfa()])
+                inner_nfa.loop_connect(root)
+            else:
+                root.loop_connect(root.terminal_nodes())
         else:
             branch = root
             for i in range(var_count):

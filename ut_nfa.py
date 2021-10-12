@@ -105,6 +105,14 @@ class TestRREAST(unittest.TestCase):
         with self.assertRaises(nfa.ParsingError):
             parser.parse(b'aa')
 
+    def test_nfa_count_any(self):
+        parser = rre.parse(b'a*').to_nfa()
+        self.assertEqual(parser.parse(b'').text, b'')
+        self.assertEqual(parser.parse(b'a').text, b'a')
+        with self.assertRaises(nfa.ParsingError):
+            parser.parse(b'b')
+        self.assertEqual(parser.parse(b'aa').text, b'aa')
+
     def test_nfa_group(self):
         parser = rre.parse(b'(a?)').to_nfa()
         self.assertEqual(parser.parse(b'').text, b'')
