@@ -1,9 +1,10 @@
+import threading
 
 from singletonrefs import SingletonRefs
 from collections import namedtuple
 
 nfaRef = namedtuple('nfaRef', ['ref'])
-nfaRef.clone = lambda nr: nr
+nfaRef.resolve = lambda nr: nfaRef(nr.ref.resolve())
 
 
 class MetaNFA(type):
@@ -12,149 +13,231 @@ class MetaNFA(type):
         return cls._final
 
 
-
 class nfa(object, metaclass=MetaNFA):
-    def __init__(self, condition=None, *, _volitile=False):
+    def __init__(self, condition=None, *, _volatile=False):
         self._condition = condition
         self._links = tuple()
-        self._i_volatile = _volitile
-
-
-    @property
-    def _volatile(self):
-        return self._i_volatile
-    @_volatile.setter
-    def _volatile(self, value):
-        assert self._i_volatile
-        assert value == False
-        self._i_volatile = False
-
 
     @property
     def condition(self):
-        return self._condition
+        with nfaModEnv(False) as env:
+            return env.ref_resolve(self)._condition
     @condition.setter
     def condition(self, value):
-        assert self._i_volatile 
-        self._condition = value
+        with nfaModEnv(False) as env:
+            assert env.is_volatile
+            env.ref_resolve(self)._condition = value
 
+    @property
+    def links(self):
+        with nfaModEnv(False) as env:
+            return env.ref_resolve(self)._links
+    @links.setter
+    def links(self, value):
+        with nfaModEnv(False) as env:
+            assert env.is_volatile
+            env.ref_resolve(self)._links = value
+
+    @property
+    def final(self):
+        return self == nfa.final
+
+    def test_condition(self, s):
+        # Final is terminal and sould never be tested
+        assert self != nfa.final
+        if self.condition is None:
+            retval = ('', s)
+        else:
+            retval = self.condition(s)
+        # Debug checks
+        if __debug__ and retval[0] is None:
+            assert retval[1] == s
+        elif __debug__:
+            assert retval[0] + retval[1] == s
+        return retval
+
+    def add_links(self, *links):
+        with self.modify() as env:
+            self.links = self.links + tuple(links)
+            return env.resolve()
+
+    def modify(self):
+        return nfaModEnv(True, self)
+
+    def __repr__(self):
+        return f"nfa({id(self)})"
+
+nfa._final = nfa()
+
+
+class nfaVolatile:
+    def __init__(self, base):
+        self._base = base
+        self._i_links = tuple()
+        self._i_rev_links = set()
+        self._changed_val = None
+        self._done = False
+        self._made = False
+
+    def make(self, env):
+        if self._made:
+            return
+        self._made = True
+        self._i_links = tuple(env.ref_resolve(ln) for ln in self._base._links)
+        for ln in self._i_links:
+            ln.add_rev_link(self)
+
+    def add_rev_link(self, node):
+        self._i_rev_links.add(id(node))
+
+
+    def remove_rev_link(self, node):
+        self._i_rev_links.remove(id(node))
+
+
+    def _mark_changed(self, env):
+        if self._changed_val is not None:
+            return
+        self._changed_val = nfa()
+        for inode in self._i_rev_links:
+            node = env.lookup(inode)
+            node._mark_changed(env)
 
     @property
     def links(self):
         return self._links
     @links.setter
     def links(self, value):
-        assert self._volatile
-        return self._links
-
-
+        self._links = value
     @property
-    def final(self):
-        return self == nfa.final
+    def _links(self):
+        return self._i_links
+    @_links.setter
+    def _links(self, value):
+        with nfaModEnv(False) as env:
+            new_links = tuple(env.make_volatile(ln) for ln in value)
+            for ln in self._i_links:
+                if isinstance(ln, nfaRef):
+                    ln = ln.ref
+                ln.remove_rev_link(self)
+            for ln in new_links:
+                if isinstance(ln, nfaRef):
+                    ln = ln.ref
+                ln.add_rev_link(self)
+            self._i_links = new_links
+            self._mark_changed(env)
 
-
-    def test_condition(self, s):
-        # Final is terminal and sould never be tested
-        assert self != nfa.final
-
-        if self.condition is None:
-            retval = ('', s)
-        else:
-            retval = self.condition(s)
-
-        if __debug__ and retval[0] is None:
-            assert retval[1] == s
-        elif __debug__:
-            assert retval[0] + retval[1] == s
-
-        return retval
-
+    def resolve(self):
+        if self._changed_val is None:
+            return self._base
+        if self._done:
+            return self._changed_val
+        self._done = True
+        self._changed_val._condition = self._base._condition
+        self._changed_val._links = tuple(ln.resolve() for ln in self._i_links)
+        return self._changed_val
 
     def add_links(self, *links):
-        with SingletonRefs(f"{__file__}:nfs.modify") as refs:
-            return self._add_links(refs, *links)
+        self.links = self.links + tuple(links)
 
 
-    def _add_links(self, refs, *links):
-        if __debug__ and 'debug_modify_op' in refs:
-            for ln in links:
-                assert ln not in refs.values()
-        other = self.clone()
-        other._links = tuple(self._clone_ln_gen(refs, other, *links))
-        return other
+class nfaModEnv:
+    locals = threading.local()
 
+    def __init__(self, wr_en, root=None):
+        assert not wr_en or root is not None
+        self._wr_en = wr_en
+        self._root = root
+        self._is_outer = False
+        if __debug__:
+            self._has_entered = False
+            self._has_exited = False
 
-    def clone(self):
-        with SingletonRefs(f"{__file__}:nfs.modify") as refs:
-            return self._clone(refs)
+    @property
+    def is_volatile(self):
+        return self._wr_en
 
-
-    def _clone_ln(self, ln, refs, other):
-        if isinstance(ln, nfaRef):
-            if 'linkRefObjs' not in refs:
-                refs['linkRefObjs'] = set()
-            refs['linkRefObjs'].add(other)
-            has_self = self in ln.ref
+    def ref_resolve(self, node):
+        if id(node) in nfaModEnv.locals.idmap:
+            return nfaModEnv.locals.idmap[id(node)]
         else:
-            has_self = self in ln
-        return ln.clone() if has_self else ln
+            return node
 
-    def _clone_ln_gen(self, refs, other, *extend):
-        for ln in self.links:
-            yield self._clone_ln(ln, refs, other)
-        for ln in extend:
-            yield self._clone_ln(ln, refs, other)
+    def mark_and_prop_change(self, node, touched):
+        raise NotImplementedError
 
+    def _build_ln_ref(self, vnode, link):
+        if link is nfaRef:
+            link = link.ref
+        self._build_refs(link)
+        lnvnode = nfaModEnv.locals.idmap[id(link)]
+        lnvnode.add_rev_link(vnode)
 
-    def _clone_ln_complete_gen(self, refs):
-        for ln in self._links:
-            if isinstance(ln, nfaRef):
-                if id(ln.ref) in refs:
-                    yield nfaRef(refs[id(ln.ref)])
-                    continue
-            yield ln
+    def _build_refs(self, node):
+        if id(node) in nfaModEnv.locals.idmap:
+            return
+        vnode = nfaVolatile(node)
+        nfaModEnv.locals.idmap[id(node)] = vnode
+        nfaModEnv.locals.idmap[id(vnode)] = vnode
+        for ln in node._links:
+            self._build_refs(ln)
+            self._build_ln_ref(vnode, ln)
 
-    
-    def _clone_complete(self, refs):
-        if 'linkRefObjs' in refs:
-            for other in refs['linkRefObjs']:
-                other._links = tuple(other._clone_ln_complete_gen(refs))
+    def make_volatile(self, node):
+        is_ref = isinstance(node, nfaRef)
+        if is_ref:
+            node = node.ref
+        self._build_refs(node)
+        vnode = nfaModEnv.locals.idmap[id(node)]
+        # super slow probably... should only check new ones
+        for idv in nfaModEnv.locals.idmap:
+            nfaModEnv.locals.idmap[idv].make(self)
+        if is_ref:
+            return nfaRef(vnode)
+        else:
+            return vnode
 
+    def lookup(self, idv):
+        return nfaModEnv.locals.idmap[idv]
 
-    def _clone(self, refs):
-        refs.set_on_complete(f"{__file__}:nfa.clone_complete", self._clone_complete)
-        if id(self) in refs:
-            return refs[id(self)]
-        other = nfa(condition=self._condition)
-        refs[id(self)] = other
-        other._links = tuple(self._clone_ln_gen(refs, other))
-        return other
+    def resolve(self):
+        if nfaModEnv.locals.idmap is None:
+            return self._root
+        else:
+            return nfaModEnv.locals.idmap[id(self._root)].resolve()
 
+    def __enter__(self):
+        if not hasattr(nfaModEnv.locals, 'idmap'):
+            nfaModEnv.locals.idmap = None
+        if __debug__:
+            assert not self._has_entered
+            self._has_entered = True
+        if nfaModEnv.locals.idmap is None:
+            nfaModEnv.locals.idmap = {}
+            nfaModEnv.locals.volatile = self._wr_en
+            self._is_outer = True
+            if self._wr_en:
+                self._build_refs(self._root)
+                for idv in nfaModEnv.locals.idmap:
+                    nfaModEnv.locals.idmap[idv].make(self)
+        else:
+            if __debug__ and not nfaModEnv.locals.volatile:
+                assert not self._wr_en
+            self._wr_en = nfaModEnv.locals.volatile
+        return self
 
-    def modify(self):
-        with SingletonRefs(f"{__file__}:nfs.modify") as refs:
-            if __debug__:
-                refs['debug_modify_op'] = True
-            mod = self._clone(refs)
-            return refs.extend_scope(mod)
+    def _complete(self):
+        if self._root is not None:
+            self._root = self.resolve()
+        nfaModEnv.locals.idmap = None
 
-    def __repr__(self):
-        return f"nfa({id(self)})"
+    def __exit__(self, *pa):
+        if __debug__:
+            assert self._has_entered
+            assert not self._has_exited
+            self._has_exited = True
+        if self._is_outer:
+            self._complete()
 
-    def __contains__(self, node):
-        if id(node) == id(self):
-            return True
-        with SingletonRefs(f"{__file__}:nfs.check") as refs:
-            if id(self) in refs:
-                return False
-            refs[id(self)] = False
-            for ln in self.links:
-                if isinstance(ln, nfaRef):
-                    if node in ln.ref:
-                        return True
-                else:
-                    if node in ln:
-                        return True
-            return False
-
-nfa._final = nfa()
+    def __del__(self):
+        assert self._has_entered == self._has_exited
