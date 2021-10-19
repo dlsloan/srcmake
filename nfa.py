@@ -61,8 +61,18 @@ class nfa(object, metaclass=MetaNFA):
             self.links = self.links + tuple(links)
             return env.resolve()
 
+    def clone(self):
+        with self.modify() as env:
+            env.change_all()
+            return env.resolve()
+
     def modify(self):
         return nfaModEnv(True, self)
+
+    def extend(self, targ):
+        with self.modify() as env:
+            env.replace_final(targ)
+            return env.resolve()
 
     def __repr__(self):
         return f"nfa({id(self)})"
@@ -71,8 +81,9 @@ nfa._final = nfa()
 
 
 class nfaVolatile:
-    def __init__(self, base):
+    def __init__(self, base, env):
         self._base = base
+        self._env = env
         self._i_links = tuple()
         self._i_rev_links = set()
         self._changed_val = None
@@ -96,7 +107,7 @@ class nfaVolatile:
 
 
     def _mark_changed(self, env):
-        if self._changed_val is not None:
+        if self._changed_val is not None or self._base.final:
             return
         self._changed_val = nfa()
         for inode in self._i_rev_links:
@@ -114,6 +125,7 @@ class nfaVolatile:
         return self._i_links
     @_links.setter
     def _links(self, value):
+        assert not self._base.final
         with nfaModEnv(False) as env:
             new_links = tuple(env.make_volatile(ln) for ln in value)
             for ln in self._i_links:
@@ -128,6 +140,8 @@ class nfaVolatile:
             self._mark_changed(env)
 
     def resolve(self):
+        if self._base.final and self._env.final_replace is not None:
+            return self._env.final_replace
         if self._changed_val is None:
             return self._base
         if self._done:
@@ -149,6 +163,7 @@ class nfaModEnv:
         self._wr_en = wr_en
         self._root = root
         self._is_outer = False
+        self.final_replace = None
         if __debug__:
             self._has_entered = False
             self._has_exited = False
@@ -156,6 +171,13 @@ class nfaModEnv:
     @property
     def is_volatile(self):
         return self._wr_en
+
+    def replace_final(self, targ):
+        if id(nfa.final) in nfaModEnv.locals.idmap:
+            for inode in nfaModEnv.locals.idmap[id(nfa.final)]._i_rev_links:
+                node = self.lookup(inode)
+                node._mark_changed(self)
+        self.final_replace = targ
 
     def ref_resolve(self, node):
         if id(node) in nfaModEnv.locals.idmap:
@@ -176,12 +198,16 @@ class nfaModEnv:
     def _build_refs(self, node):
         if id(node) in nfaModEnv.locals.idmap:
             return
-        vnode = nfaVolatile(node)
+        vnode = nfaVolatile(node, self)
         nfaModEnv.locals.idmap[id(node)] = vnode
         nfaModEnv.locals.idmap[id(vnode)] = vnode
         for ln in node._links:
             self._build_refs(ln)
             self._build_ln_ref(vnode, ln)
+
+    def change_all(self):
+        for idv in nfaModEnv.locals.idmap:
+            nfaModEnv.locals.idmap[idv]._mark_changed(self)
 
     def make_volatile(self, node):
         is_ref = isinstance(node, nfaRef)

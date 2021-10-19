@@ -92,6 +92,36 @@ class TestNFA(unittest.TestCase):
         n = n.add_links(n2)
         self.assertEqual(id(n.links[0]), id(n2))
 
+    def testDup(self):
+        n = nfa.nfa()
+        n = n.add_links(n.clone())
+        self.assertEqual(len(n.links), 1)
+        self.assertNotEqual(id(n), id(n.links[0]))
+        self.assertEqual(len(n.links[0].links), 0)
+
+    def testEnd(self):
+        n = nfa.nfa()
+        n = n.add_links(nfa.nfa.final)
+        self.assertTrue(n.links[0].final)
+
+    def testCloneEnd(self):
+        n = nfa.nfa()
+        n = n.add_links(nfa.nfa.final)
+        n2 = n.clone()
+        self.assertNotEqual(id(n), id(n2))
+        self.assertTrue(n.links[0].final)
+        self.assertTrue(n2.links[0].final)
+
+    def testExtend(self):
+        n = nfa.nfa()
+        n = n.add_links(nfa.nfa.final)
+        n2 = n.extend(nfa.nfa())
+        self.assertNotEqual(id(n), id(n2))
+        self.assertEqual(len(n.links), 1)
+        self.assertTrue(n.links[0].final)
+        self.assertEqual(len(n2.links), 1)
+        self.assertFalse(n2.links[0].final)
+        self.assertEqual(len(n2.links[0].links), 0)
 
 if __name__ == '__main__':
     unittest.main()
