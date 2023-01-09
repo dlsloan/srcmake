@@ -33,6 +33,29 @@ class TestNFA(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 nfa.nfa.final.test_condition('a')
 
+    def testBytesNFANoContition(self):
+        n = nfa.nfa()
+        self.assertEqual(n.test_condition(b'123'), (b'', b'123'))
+
+    def testBytesBasicNFACondition(self):
+        n = nfa.nfa(condition=lambda s : (b'a', s[1:]) if s.startswith(b'a') else(None, s))
+        self.assertEqual(n.test_condition(b''), (None, b''))
+        self.assertEqual(n.test_condition(b'a'), (b'a', b''))
+        self.assertEqual(n.test_condition(b'b'), (None, b'b'))
+
+    def testBytesBadCondition(self):
+        n = nfa.nfa(condition=lambda s : (b'a', s))
+        if __debug__:
+            with self.assertRaises(AssertionError):
+                n.test_condition(b'')
+
+    def testBytesFinalError(self):
+        if __debug__:
+            with self.assertRaises(AssertionError):
+                nfa.nfa.final.test_condition(b'')
+            with self.assertRaises(AssertionError):
+                nfa.nfa.final.test_condition(b'a')
+
     def testMakeLinked(self):
         n = nfa.nfa()
         n2 = n.add_links(nfa.nfa())
@@ -55,9 +78,9 @@ class TestNFA(unittest.TestCase):
         n = nfa.nfa()
         n = n.add_links(nfa.nfa())
         ln_orig = n.links[0]
-        with n.modify() as resolver:
-            n.links[0].add_links(n)
-        n2 = resolver.resolve()
+        m = n.as_var()
+        m.links[0].add_links(n)
+        n2 = m.as_invar()
         self.assertEqual(len(n.links), 1)
         self.assertEqual(len(n.links[0].links), 0)
         self.assertEqual(id(n.links[0]), id(ln_orig))
@@ -80,17 +103,11 @@ class TestNFA(unittest.TestCase):
         n = n.add_links(n2)
         ext_n = nfa.nfa()
         n3 = n.add_links(nfa.nfaRef(n), nfa.nfaRef(n2), nfa.nfaRef(ext_n))
-        self.assertNotEqual(id(n), id(n3.links[1].ref))
-        self.assertEqual(id(n2), id(n3.links[2].ref))
+        self.assertNotEqual(id(n3), id(n))
         self.assertEqual(id(n3), id(n3.links[1].ref))
-        self.assertEqual(id(n3.links[0]), id(n3.links[2].ref))
+        self.assertEqual(id(n2), id(n3.links[2].ref))
+        self.assertNotEqual(id(n3.links[0]), id(n3.links[2].ref))
         self.assertEqual(id(ext_n), id(n3.links[3].ref))
-
-    def testNoCopy(self):
-        n = nfa.nfa()
-        n2 = nfa.nfa()
-        n = n.add_links(n2)
-        self.assertEqual(id(n.links[0]), id(n2))
 
     def testDup(self):
         n = nfa.nfa()

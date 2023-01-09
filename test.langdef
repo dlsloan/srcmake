@@ -1,0 +1,27 @@
+hex:(0x){![a-fA-F0-9]+:Expected hex digit [a-fA-F0-9]}
+bin:(0b){![01]+:Expected binary digit [01]}
+octal:(0o){![0-7]+:"Expected octal digit [0-7]}
+integer:[0-9]+
+float:[0-9]+(\.[0-9]+)?([eE][+-]?{![0-9]+:Expected decimal digit [0-9]})?
+number:{:hex}|{:bin}|{:octal}|{:integer}|{:float}
+
+double_string:"{!([^"\\]|\\.)*":Expected unescaped closing double quotes}
+single_string:'{!([^'\\]|\\.)*':Expected unescaped closing single quotes}
+string:{:double_string}|{:single_string}
+
+literal:{:string}|{:number}
+
+inline_comment://[^\n]*(\n|\0)
+multiline_comment:/\*{!([^*]|\*[^/])*\*/:Expected comment close: */}
+comment:{:inline_comment}|{:multiline_comment}
+
+ws:({:comment}|[ \t\n])+
+
+name:[a-zA-Z_][a-zA-Z0-9_]*
+//todo lhs recursion might actually be needed...
+//type_name:({:name}|{:template})(\.{:name}|{:template})*
+//template:{:type_name}
+template_enc:<{!{:template_arg}(,{:ws}{:template_arg})*>:Excpected template in format "name<arg, arg>" with strict spacing around '<' and '>'}
+arr_dec:\[{!{:arr_arg}(,{:ws}{:arr_arg})*\]:Excpected array in format "name[arg, arg]" with strict spacing around '[' and ']'}
+type_name:({:name}{:template_enc}?{arr_dec}?)(\.{:name}{:template_enc}?{:arr_dec}?)*
+var_dec:{:type_name}{:ws}{:name}({ws:}={:ws}{:expression})?;
