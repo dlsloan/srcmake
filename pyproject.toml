@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "srcmake"
+version = "0.0.1"
+authors = [
+    { name="David Sloan", email="delus.dlsloan@gmail.com" },
+]
+description = "A python based builder to replace Makefiles"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: Other/Proprietary License",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "argparse",
+    "mypycheck",
+]
+
+[project.scripts]
+    srcmake = "srcmake:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["srcmake*"]
+
