@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import *
 
 def run_package(env: 'buildenv.BuildEnv', path: Path) -> None:
-    pkg_file = env.cwd / f"{path}.pkg"
+    pkg_file = env.cwd / path
     if not pkg_file.exists():
         raise FileNotFoundError(pkg_file)
     pkg_dir = env._package_dir / pkg_file.stem
