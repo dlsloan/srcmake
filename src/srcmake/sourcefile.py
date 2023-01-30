@@ -17,11 +17,13 @@ class SourceFile:
     factory: sourcefilefactory.SourceFileFactory
     target: Optional['target.Target']
     links: List['SourceFile']
+    _full_deps: Optional[Set[Path]]
 
     def __init__(self, env: 'buildenv.BuildEnv', path: Path) -> None:
         self.env = env
         self.path = path
         self.links = []
+        self._full_deps = None
 
         factory: Optional[sourcefilefactory.SourceFileFactory] = None
         for factory in self.factories:
@@ -38,6 +40,22 @@ class SourceFile:
         self.factory = factory
         self.target = self.factory.get_target(self.env, self)
         self.factory.scan_for_sources(self)
+
+    def full_deps(self) -> Set[Path]:
+        if self._full_deps is None:
+            deps: Set[Path]=set()
+            self.scan_deps(deps)
+            self._full_deps = deps
+        return self._full_deps
+
+    def scan_deps(self, touched: Set[Path]) -> None:
+        if self._full_deps:
+            for dep in self._full_deps:
+                touched.add(dep)
+        else:
+            touched.add(self.path)
+            for link in self.links:
+                link.scan_deps(touched)
 
 # circular ref for type hints
 from . import buildenv, target

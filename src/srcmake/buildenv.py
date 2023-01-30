@@ -1,6 +1,6 @@
 import mypycheck as _chk; _chk.check(__file__)
 
-from . import target, sourcefile
+from . import target, sourcefile, executable
 
 # import source file types, these are not directly used, just here for
 # registration
@@ -22,9 +22,9 @@ class BuildEnv:
         self.cwd = Path(cwd)
         if not self.cwd.is_absolute():
             self.cwd = Path.cwd() / self.cwd
-        self._build_dir = self.cwd /'_build'
+        self._build_dir = self.cwd / '_build'
         self.build_dir = self.local_path(self._build_dir)
-        self._package_dir = self.cwd / Path('_pkg')
+        self._package_dir = self.cwd / '_pkg'
         self.package_dir = self.local_path(self._package_dir)
         self.targets = {}
         self.source_files = {}
@@ -53,6 +53,11 @@ class BuildEnv:
         source = self.get_source(source_path)
         return source.target
 
+    def get_executable(self, source_path: Union[str, Path]) -> 'executable.Executable':
+        target = self.get_target(source_path)
+        assert target is not None, f"Not convetable to executable: {source_path}"
+        return executable.Executable(self, target)
+
     def local_path(self, path: Path) -> Path:
         if not path.is_absolute():
             path = Path.cwd() / path
@@ -67,3 +72,16 @@ class BuildEnv:
 
     def build_path(self, path: Path) -> Path:
         return self.build_dir / self.local_path(path)
+
+    def build_rel(self, path: Path) -> Path:
+        path = self.cwd / path
+        for i in range(1000):
+            try:
+                if i == 0:
+                    return path.relative_to(self._build_dir)
+                else:
+                    prepend = '/'.join(['..'] * i)
+                    return Path(prepend) / path.relative_to(self._build_dir.parents[i-1])
+            except ValueError:
+                pass
+        raise ValueError(f"Path depth limit exceeded {path}->{self._build_dir}")
