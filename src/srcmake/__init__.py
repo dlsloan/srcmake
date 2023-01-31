@@ -6,10 +6,12 @@ from .gccbuilder import GccBuilder
 def main() -> None:
     import argparse
     import shutil
+    import subprocess as sp
     parser = argparse.ArgumentParser()
     parser.add_argument('target', nargs='?')
     parser.add_argument('--clean', action='store_true')
     parser.add_argument('--purge', action='store_true')
+    parser.add_argument('--run', action='store_true')
     args = parser.parse_args()
     env = BuildEnv()
     if (args.clean or args.purge) and env._build_dir.exists():
@@ -20,3 +22,8 @@ def main() -> None:
         exe = env.get_executable(args.target)
         build = GccBuilder(exe)
         build.make()
+        if args.run:
+            try:
+                sp.check_call([str(env.cwd / exe.path)])
+            except sp.CalledProcessError:
+                exit(1)
