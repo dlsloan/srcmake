@@ -34,7 +34,7 @@ class GccBuilder:
                 print(f" {spath}", end='', file=f)
             print(file=f)
 
-            print("\tgcc", end='', file=f)
+            print("\tg++", end='', file=f)
             for targ in self.env.targets.values():
                 spath = str(self.env.build_rel(targ.path))
                 if ' ' in spath:
@@ -66,7 +66,7 @@ class GccBuilder:
         if ' ' in ssrc:
             ssrc = f'"{ssrc}"'
 
-        print(f"\tgcc -I../_pkg -c {ssrc} -o {starg}", file=f)
+        print(f"\tg++ -I../_pkg -c {ssrc} -o {starg}", file=f)
         print(file=f)
 
 from . import buildenv, executable, target
