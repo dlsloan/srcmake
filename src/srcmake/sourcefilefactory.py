@@ -44,7 +44,7 @@ class SourceFileFactory:
                     if m is not None:
                         linked = source.env._get_source(source.path.parent / m.group(1), Path(m.group(1)))
                         if linked is None:
-                            raise FileNotFoundError(f"File not found: {source.path}")
+                            raise FileNotFoundError(f"File not found: {source.path.parent / m.group(1)}")
                         source.links.append(linked)
                         continue
                 

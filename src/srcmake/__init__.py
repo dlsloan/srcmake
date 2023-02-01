@@ -21,9 +21,9 @@ def main() -> None:
     if args.target is not None:
         exe = env.get_executable(args.target)
         build = GccBuilder(exe)
-        build.make()
-        if args.run:
-            try:
+        try:
+            build.make()
+            if args.run:
                 sp.check_call([str(env.cwd / exe.path)])
-            except sp.CalledProcessError:
-                exit(1)
+        except sp.CalledProcessError:
+            exit(1)
