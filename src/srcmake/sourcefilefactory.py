@@ -28,11 +28,12 @@ class SourceFileFactory:
     command_comment_re = re.compile('_______________________________________()')
 
     package_command_re = re.compile(r'\s*package\s*"([^"]*)"')
+    option_command_re = re.compile(r'\s*opt(?:ion)?\s*([a-z0-9_\-]+)\s*(:=|\+=)\s*(.*)', flags=re.IGNORECASE)
 
     def get_target(self, env: 'buildenv.BuildEnv', source: 'sourcefile.SourceFile') -> Optional['target.Target']:
         return None
 
-    def scan_for_sources(self, source: 'sourcefile.SourceFile') -> None:
+    def scan(self, source: 'sourcefile.SourceFile') -> None:
         src_path = source.env.cwd / source.path
         with src_path.open('r') as f:
             lineno = 0
@@ -50,10 +51,14 @@ class SourceFileFactory:
                 
                     m = self.command_comment_re.match(line)
                     if m is not None:
-                        m = self.package_command_re.match(m.group(1))
+                        cmd = m.group(1)
+                        m = self.package_command_re.match(cmd)
                         if m is not None:
                             run_package(source.env, source.path.parent / m.group(1))
                             continue
+                        m = self.option_command_re.match(cmd)
+                        if m is not None:
+                            source.opts.append((m.group(1), m.group(2), m.group(3).strip()))
                         continue
 
                 except FileNotFoundError as err:

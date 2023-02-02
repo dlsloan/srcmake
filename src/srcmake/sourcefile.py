@@ -18,12 +18,14 @@ class SourceFile:
     target: Optional['target.Target']
     links: List['SourceFile']
     _full_deps: Optional[Set[Path]]
+    opts: List[Tuple[str, str, str]]
 
     def __init__(self, env: 'buildenv.BuildEnv', path: Path) -> None:
         self.env = env
         self.path = path
         self.links = []
         self._full_deps = None
+        self.opts = []
 
         factory: Optional[sourcefilefactory.SourceFileFactory] = None
         for factory in self.factories:
@@ -39,7 +41,7 @@ class SourceFile:
 
         self.factory = factory
         self.target = self.factory.get_target(self.env, self)
-        self.factory.scan_for_sources(self)
+        self.factory.scan(self)
 
     def full_deps(self) -> Set[Path]:
         if self._full_deps is None:

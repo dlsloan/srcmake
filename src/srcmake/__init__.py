@@ -1,7 +1,7 @@
 import mypycheck as _chk; _chk.check(__file__)
 
 from .buildenv import BuildEnv
-from .gccbuilder import GccBuilder
+from .builder import Builder
 
 def main() -> None:
     import argparse
@@ -20,7 +20,7 @@ def main() -> None:
         shutil.rmtree(env._package_dir)
     if args.target is not None:
         exe = env.get_executable(args.target)
-        build = GccBuilder(exe)
+        build = Builder(exe)
         try:
             build.make()
             if args.run:

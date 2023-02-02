@@ -82,7 +82,7 @@ class PackagesTests(unittest.TestCase):
                 exe = env.get_executable('proj/main.cpp')
                 assert exe.env == env
                 assert exe.path == Path('_build/main')
-                build = srcmake.GccBuilder(exe)
+                build = srcmake.Builder(exe)
                 build.make(stdout=log_file.fileno(), stderr=log_file.fileno())
                 output = sp.check_output(['proj/_build/main'], encoding='utf-8')
                 assert output == 'Hello as const!\n'
@@ -98,7 +98,7 @@ class PackagesTests(unittest.TestCase):
                 exe = env.get_executable('proj/main_2_wrapper.cpp')
                 assert exe.env == env
                 assert exe.path == Path('_build/main_2_wrapper')
-                build = srcmake.GccBuilder(exe)
+                build = srcmake.Builder(exe)
                 build.make(stdout=log_file.fileno(), stderr=log_file.fileno())
                 output = sp.check_output(['proj/_build/main_2_wrapper'], encoding='utf-8')
                 assert output == 'Hello as const!2\n'
@@ -114,7 +114,7 @@ class PackagesTests(unittest.TestCase):
                 exe = env.get_executable('proj/inner/main.cpp')
                 assert exe.env == env
                 assert exe.path == Path('_build/inner/main')
-                build = srcmake.GccBuilder(exe)
+                build = srcmake.Builder(exe)
                 build.make(stdout=log_file.fileno(), stderr=log_file.fileno())
                 output = sp.check_output(['proj/_build/inner/main'], encoding='utf-8')
                 assert output == 'Hello as const!3\n'

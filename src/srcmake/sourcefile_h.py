@@ -9,9 +9,9 @@ class CppHeaderFileFactory(sourcefilefactory.SourceFileFactory):
     link_re = re.compile(r'\s*#\s*include\s*"([^"]*)"')
     command_comment_re = re.compile('//!(.*)')
 
-    def scan_for_sources(self, source: 'sourcefile.SourceFile') -> None:
+    def scan(self, source: 'sourcefile.SourceFile') -> None:
         cpp_path = source.path.parent / f"{source.path.stem}.cpp"
         source.env._get_source(cpp_path, None)
-        super().scan_for_sources(source)
+        super().scan(source)
 
 sourcefile.SourceFile.register(CppHeaderFileFactory())

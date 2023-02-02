@@ -5,13 +5,26 @@ import sys
 
 from typing import *
 
-class GccBuilder:
+class Builder:
+    obj_builder: str='g++'
+    obj_builder_args: str = '-Wall -Werror'
+    link_builder: str='g++'
+    link_builder_args: str = ''
+
     env: 'buildenv.BuildEnv'
     exe: 'executable.Executable'
 
     def __init__(self, exe: 'executable.Executable') -> None:
         self.env = exe.env
         self.exe = exe
+        if 'obj-builder' in exe.opts:
+            self.obj_builder = exe.opts['obj-builder']
+        if 'obj-builder-args' in exe.opts:
+            self.obj_builder_args = exe.opts['obj-builder-args']
+        if 'link-builder' in exe.opts:
+            self.link_builder = exe.opts['link-builder']
+        if 'link-builder-args' in exe.opts:
+            self.link_builder_args = exe.opts['link-builder-args']
 
     def make(self, *, stdout: int=-1, stderr: int=-1) -> None:
         if stdout < 0:
@@ -34,7 +47,7 @@ class GccBuilder:
                 print(f" {spath}", end='', file=f)
             print(file=f)
 
-            print("\tg++ -Wall -Werror -fno-exceptions", end='', file=f)
+            print(f"\t{self.obj_builder} {self.obj_builder_args}", end='', file=f)
             for targ in self.env.targets.values():
                 spath = str(self.env.build_rel(targ.path))
                 if ' ' in spath:
@@ -66,7 +79,7 @@ class GccBuilder:
         if ' ' in ssrc:
             ssrc = f'"{ssrc}"'
 
-        print(f"\tg++ -fno-exceptions -I../_pkg -c {ssrc} -o {starg}", file=f)
+        print(f"\t{self.link_builder} {self.link_builder_args} -I../_pkg -c {ssrc} -o {starg}", file=f)
         print(file=f)
 
 from . import buildenv, executable, target

@@ -5,3 +5,14 @@ set -e
 for test in tests/ut_*.py ; do
     python3 "$test" -f
 done
+
+#Messages too self
+cat <<EOF
+TODO: this opt stuff stuff doesn't seem obvious to long term me... is there a
+ way to ref a simple script or something for this? / have some makefile line
+ generators with some sort of obvious default from cmd line?
+the opt stuff:
+//!opt obj-builder-args:= -Wall
+//!opt obj-builder-args+= -Werror
+...
+EOF

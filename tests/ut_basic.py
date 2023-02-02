@@ -59,10 +59,19 @@ class BasicHelloWorldTests(unittest.TestCase):
                 exe = env.get_executable('main.cpp')
                 assert exe.env == env
                 assert exe.path == Path('_build/main')
-                build = srcmake.GccBuilder(exe)
+                build = srcmake.Builder(exe)
                 build.make(stdout=log_file.fileno(), stderr=log_file.fileno())
                 output = sp.check_output(['./_build/main'], encoding='utf-8')
                 assert output == 'Hello World\n'
+
+    def test_executable_opts(self):
+        os.chdir(test_dir)
+        env = srcmake.BuildEnv(cwd='projects/hello_world')
+        exe = env.get_executable('projects/hello_world/main.cpp')
+        assert 'obj-builder-args' in exe.opts
+        assert exe.opts['obj-builder-args'] == '-Wall -Werror -fno-exceptions'
+        assert 'link-builder-args' in exe.opts
+        assert exe.opts['link-builder-args'] == '-fno-exceptions'
 
 class MultiFileHelloWorldTests(unittest.TestCase):
     def setUp(self):
@@ -119,7 +128,7 @@ class MultiFileHelloWorldTests(unittest.TestCase):
                 exe = env.get_executable('main.cpp')
                 assert exe.env == env
                 assert exe.path == Path('_build/main')
-                build = srcmake.GccBuilder(exe)
+                build = srcmake.Builder(exe)
                 build.make(stdout=log_file.fileno(), stderr=log_file.fileno())
                 output = sp.check_output(['./_build/main'], encoding='utf-8')
                 assert output == 'hello world from print func!\n'
