@@ -7,9 +7,9 @@ from typing import *
 
 class Builder:
     obj_builder: str='g++'
-    obj_builder_args: str = '-Wall -Werror'
+    obj_builder_args: str = '-g -Wall -Werror'
     link_builder: str='g++'
-    link_builder_args: str = ''
+    link_builder_args: str = '-g'
 
     env: 'buildenv.BuildEnv'
     exe: 'executable.Executable'
