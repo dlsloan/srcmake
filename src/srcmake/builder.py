@@ -47,7 +47,7 @@ class Builder:
                 print(f" {spath}", end='', file=f)
             print(file=f)
 
-            print(f"\t{self.obj_builder} {self.obj_builder_args}", end='', file=f)
+            print(f"\t{self.link_builder} {self.link_builder_args}", end='', file=f)
             for targ in self.env.targets.values():
                 spath = str(self.env.build_rel(targ.path))
                 if ' ' in spath:
@@ -79,7 +79,7 @@ class Builder:
         if ' ' in ssrc:
             ssrc = f'"{ssrc}"'
 
-        print(f"\t{self.link_builder} {self.link_builder_args} -I../_pkg -c {ssrc} -o {starg}", file=f)
+        print(f"\t{self.obj_builder} {self.obj_builder_args} -I../_pkg -c {ssrc} -o {starg}", file=f)
         print(file=f)
 
 from . import buildenv, executable, target
