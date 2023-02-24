@@ -47,13 +47,14 @@ class Builder:
                 print(f" {spath}", end='', file=f)
             print(file=f)
 
-            print(f"\t{self.link_builder} {self.link_builder_args}", end='', file=f)
+            print(f"\t{self.link_builder}", end='', file=f)
             for targ in self.env.targets.values():
                 spath = str(self.env.build_rel(targ.path))
                 if ' ' in spath:
                     spath = f'"{spath}"'
                 print(f" {spath}", end='', file=f)
-            print(f" -o {starg}", file=f)
+            print(f" -o {starg}", end='', file=f)
+            print(f" {self.link_builder_args}", file=f)
             print(file=f)
 
             for targ in self.env.targets.values():
