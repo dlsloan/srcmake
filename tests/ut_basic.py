@@ -26,22 +26,13 @@ class BasicHelloWorldTests(unittest.TestCase):
     def test_hello_world_target(self):
         os.chdir(test_dir)
         env = srcmake.BuildEnv()
-        target = env.get_target('projects/hello_world/main.cpp')
+        target = env.get_target('projects/hello_world/main.cpp', '.o')
         assert target.env == env
-        assert target.source.path == Path('projects/hello_world/main.cpp')
+        assert target.type == ('.cpp', '.cpp.o')
+        assert target.src == Path('projects/hello_world/main.cpp')
         assert target.path == Path('_build/projects/hello_world/main.cpp.o')
         assert Path('_build/projects/hello_world/main.cpp.o') in env.targets
         assert Path('projects/hello_world/main.cpp') in env.source_files
-
-    def test_hello_world_cwd_target(self):
-        os.chdir(test_dir)
-        env = srcmake.BuildEnv(cwd='projects/hello_world')
-        target = env.get_target('projects/hello_world/main.cpp')
-        assert target.env == env
-        assert target.source.path == Path('main.cpp')
-        assert target.path == Path('_build/main.cpp.o')
-        assert Path('_build/main.cpp.o') in env.targets
-        assert Path('main.cpp') in env.source_files
 
     def test_unknown_source(self):
         env = srcmake.BuildEnv()
@@ -56,22 +47,21 @@ class BasicHelloWorldTests(unittest.TestCase):
                 proj = Path(tmp_dir)
                 os.chdir(proj)
                 env = srcmake.BuildEnv()
-                exe = env.get_executable('main.cpp')
+                exe = env.get_target('main.cpp')
                 assert exe.env == env
                 assert exe.path == Path('_build/main')
-                build = srcmake.Builder(exe)
-                build.make(stdout=log_file.fileno(), stderr=log_file.fileno())
+                exe.make(stdout=log_file.fileno(), stderr=log_file.fileno())
                 output = sp.check_output(['./_build/main'], encoding='utf-8')
                 assert output == 'Hello World\n'
 
     def test_executable_opts(self):
         os.chdir(test_dir)
-        env = srcmake.BuildEnv(cwd='projects/hello_world')
-        exe = env.get_executable('projects/hello_world/main.cpp')
-        assert 'obj-builder-args' in exe.opts
-        assert exe.opts['obj-builder-args'] == '-Wall -Werror -fno-exceptions'
-        assert 'link-builder-args' in exe.opts
-        assert exe.opts['link-builder-args'] == '-fno-exceptions'
+        env = srcmake.BuildEnv()
+        exe = env.get_target('projects/hello_world/main.cpp')
+        assert 'cpp.obj.args' in exe.lopts
+        assert exe.lopts['cpp.obj.args'] == '-Wall -Werror -fno-exceptions'
+        assert 'cpp.root.args' in exe.lopts
+        assert exe.lopts['cpp.root.args'] == '-fno-exceptions'
 
 class MultiFileHelloWorldTests(unittest.TestCase):
     def setUp(self):
@@ -97,12 +87,15 @@ class MultiFileHelloWorldTests(unittest.TestCase):
     def test_full_target(self):
         env = srcmake.BuildEnv()
         target = env.get_target('main.cpp')
-        assert target.source.path == Path('main.cpp')
-        assert len(env.targets) == 2
-        assert env.targets[Path('_build/main.cpp.o')].source.path == Path('main.cpp')
+        assert target.src == Path('main.cpp')
+        print('\n', env.targets)
+        assert len(env.targets) == 4
+        assert env.targets[Path('_build/main.cpp.o')].src == Path('main.cpp')
         assert env.targets[Path('_build/main.cpp.o')].path == Path('_build/main.cpp.o')
-        assert env.targets[Path('_build/hello_world.cpp.o')].source.path == Path('hello_world.cpp')
+        assert env.targets[Path('_build/hello_world.cpp.o')].src == Path('hello_world.cpp')
         assert env.targets[Path('_build/hello_world.cpp.o')].path == Path('_build/hello_world.cpp.o')
+        assert env.targets[Path('hello_world.h')].src == Path('hello_world.h')
+        assert env.targets[Path('hello_world.h')].path == Path('_build/hello_world.cpp.o')
         assert len(env.source_files) == 3
         src_main = env.source_files[Path('main.cpp')]
         assert src_main.target == env.targets[Path('_build/main.cpp.o')]
@@ -125,11 +118,10 @@ class MultiFileHelloWorldTests(unittest.TestCase):
                 proj = Path(tmp_dir)
                 os.chdir(proj)
                 env = srcmake.BuildEnv()
-                exe = env.get_executable('main.cpp')
+                exe = env.get_target('main.cpp')
                 assert exe.env == env
                 assert exe.path == Path('_build/main')
-                build = srcmake.Builder(exe)
-                build.make(stdout=log_file.fileno(), stderr=log_file.fileno())
+                exe.make(stdout=log_file.fileno(), stderr=log_file.fileno())
                 output = sp.check_output(['./_build/main'], encoding='utf-8')
                 assert output == 'hello world from print func!\n'
 
