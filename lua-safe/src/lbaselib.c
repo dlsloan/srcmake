@@ -11,9 +11,13 @@
 
 
 #include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "lua.h"
 
@@ -502,6 +506,19 @@ static int luaB_tostring (lua_State *L) {
   return 1;
 }
 
+static int luaB_require(lua_State *L) {
+  char path[PATH_MAX];
+  luaL_checkany(L, 1);
+  if (!lua_isstring(L, 1))
+    luaL_error(L, "Probably not reachable? should be a string");
+  // TODO: sanitize/lua style paths
+  snprintf(path, sizeof(path), "%s.lua", luaL_tolstring(L, 1, NULL));
+  int rc = luaL_dofile(L, path);
+  if (rc != 0)
+    return luaL_error(L, lua_tostring(L, -1));
+  return 1;
+}
+
 
 static const luaL_Reg base_funcs[] = {
   {"assert", luaB_assert},
@@ -527,6 +544,7 @@ static const luaL_Reg base_funcs[] = {
   {"tostring", luaB_tostring},
   {"type", luaB_type},
   {"xpcall", luaB_xpcall},
+  {"require", luaB_require},
   /* placeholders */
   {LUA_GNAME, NULL},
   {"_VERSION", NULL},
