@@ -9,7 +9,7 @@
 
 #include "lprefix.h"
 
-
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -410,22 +410,6 @@ static int luaB_load (lua_State *L) {
 /* }====================================================== */
 
 
-static int dofilecont (lua_State *L, int d1, lua_KContext d2) {
-  (void)d1;  (void)d2;  /* only to match 'lua_Kfunction' prototype */
-  return lua_gettop(L) - 1;
-}
-
-
-static int luaB_dofile (lua_State *L) {
-  const char *fname = luaL_optstring(L, 1, NULL);
-  lua_settop(L, 1);
-  if (l_unlikely(luaL_loadfile(L, fname) != LUA_OK))
-    return lua_error(L);
-  lua_callk(L, 0, LUA_MULTRET, 0, dofilecont);
-  return dofilecont(L, 0, 0);
-}
-
-
 static int luaB_assert (lua_State *L) {
   if (l_likely(lua_toboolean(L, 1)))  /* condition is true? */
     return lua_gettop(L);  /* return all arguments */
@@ -507,15 +491,81 @@ static int luaB_tostring (lua_State *L) {
 }
 
 static int luaB_require(lua_State *L) {
-  char path[PATH_MAX];
+  const char *reqstr;
+  static char cwd[PATH_MAX] = {};
+  int cwdlen = PATH_MAX;
+  char p1[PATH_MAX];
+  char p2[PATH_MAX];
+  size_t reqlen;
+  int rc;
+
+  // Get cwd once for file location checking
+  if (cwd[0] == 0) {
+    reqstr = getcwd(p1, sizeof(p1));
+    if (reqstr == NULL)
+      return luaL_error(L, "Could not get cwd (%d:%s)", errno, strerror(errno));
+    reqstr = realpath(p1, cwd);
+    if (reqstr == NULL)
+      return luaL_error(L, "Could not resolve cwd (%d:%s)", errno, strerror(errno));
+    cwdlen = strlen(cwd);
+  }
+
   luaL_checkany(L, 1);
   if (!lua_isstring(L, 1))
-    luaL_error(L, "Probably not reachable? should be a string");
-  // TODO: sanitize/lua style paths
-  snprintf(path, sizeof(path), "%s.lua", luaL_tolstring(L, 1, NULL));
-  int rc = luaL_dofile(L, path);
+    return luaL_error(L, "Probably not reachable? should be a string");
+
+  reqstr = luaL_tolstring(L, 1, &reqlen);
+  if (reqlen > sizeof(PATH_MAX) - 1 - 4)
+    return luaL_error(L, "Error require string too long %d", reqlen);
+
+  // Check to see if we've already loaded this file
+  rc = lua_getglobal(L, "_LOADED");
+  if (rc == LUA_TNIL) {
+    lua_newtable(L);
+    lua_setglobal(L, "_LOADED");
+    lua_getglobal(L, "_LOADED");
+  } else if (rc != LUA_TTABLE) {
+    return luaL_error(L, "_LOADED is not a table??");
+  }
+  lua_getfield(L, -1, reqstr);
+  if (!lua_isnil(L, -1))
+    return 1;
+  lua_pop(L, 1);
+
+  // Copy lua string into mutable buffer
+  memcpy(p1, reqstr, reqlen + 1);
+
+  // Replace '.' with '/' to build file path
+  for (size_t i = 0; i < reqlen; i++) {
+    if (p1[i] == '.')
+      p1[i] = '/';
+  }
+
+  // Add extension, we already know this can't fail
+  rc = snprintf(p2, sizeof(p2), "%s.lua", p1);
+  assert(rc < (int)sizeof(p2) && rc > 0);
+  if (access(p2, F_OK) != 0) {
+    // .lub extension for lua binary
+    rc = snprintf(p2, sizeof(p2), "%s.lub", p1);
+    assert(rc < (int)sizeof(p2) && rc > 0);
+    if (access(p2, F_OK) != 0)
+	return luaL_error(L, "Could not find lua require %s", reqstr);
+  }
+
+  char *char_ret = realpath(p2, p1);
+  if (char_ret == NULL)
+    return luaL_error(L, "Unable to get realpath of %s (%d:%s)", p2, errno, strerror(errno));
+
+  if (strncmp(p1, cwd, cwdlen) != 0)
+	return luaL_error(L, "Access error, source must be in cwd or subdir, %s not in %s", p1, cwd);
+
+  rc = luaL_dofile(L, p1);
   if (rc != 0)
     return luaL_error(L, lua_tostring(L, -1));
+
+  lua_setfield(L, -2, reqstr);
+  lua_getfield(L, -1, reqstr);
+
   return 1;
 }
 
@@ -523,7 +573,6 @@ static int luaB_require(lua_State *L) {
 static const luaL_Reg base_funcs[] = {
   {"assert", luaB_assert},
   {"collectgarbage", luaB_collectgarbage},
-  {"dofile", luaB_dofile},
   {"error", luaB_error},
   {"getmetatable", luaB_getmetatable},
   {"ipairs", luaB_ipairs},
