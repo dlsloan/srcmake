@@ -549,7 +549,7 @@ static int luaB_require(lua_State *L) {
     rc = snprintf(p2, sizeof(p2), "%s.lub", p1);
     assert(rc < (int)sizeof(p2) && rc > 0);
     if (access(p2, F_OK) != 0)
-	return luaL_error(L, "Could not find lua require %s", reqstr);
+      return luaL_error(L, "Could not find lua require %s", reqstr);
   }
 
   char *char_ret = realpath(p2, p1);
@@ -557,13 +557,13 @@ static int luaB_require(lua_State *L) {
     return luaL_error(L, "Unable to get realpath of %s (%d:%s)", p2, errno, strerror(errno));
 
   if (strncmp(p1, cwd, cwdlen) != 0)
-	return luaL_error(L, "Access error, source must be in cwd or subdir, %s not in %s", p1, cwd);
+    return luaL_error(L, "Access error, source must be in cwd or subdir, %s not in %s", p1, cwd);
 
   rc = luaL_dofile(L, p1);
   if (rc != 0)
     return luaL_error(L, lua_tostring(L, -1));
 
-  lua_setfield(L, -2, reqstr);
+  lua_setfield(L, -2, reqstr); // not quite right... this doesn't handle cycles...
   lua_getfield(L, -1, reqstr);
 
   return 1;
