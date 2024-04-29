@@ -39,3 +39,16 @@ def run_c_cpp_deps(compiler: str, args: _t.Sequence[str], path: _t.Union[str, _P
         output = output.strip()
         return _parse_dep_output(output)
     return _async.AsyncValue(run)
+
+def run_c_cpp_obj_build(compiler: str, args: _t.Sequence[str], src_path: _Path, obj_path: _Path) -> None:
+    cmd = [compiler]
+    cmd += args
+    cmd += ['-c', '-o', str(obj_path), str(src_path)]
+    _sp.check_output(args=cmd, encoding='utf-8', stderr=_sp.PIPE)
+
+def run_c_cpp_exe_build(compiler: str, args: _t.Sequence[str], obj_paths: _t.Sequence[_Path], exe_path: _Path) -> None:
+    cmd = [compiler]
+    cmd += args
+    cmd += ['-o', str(exe_path)]
+    cmd += [str(p) for p in obj_paths]
+    _sp.check_output(args=cmd, encoding='utf-8', stderr=_sp.PIPE)

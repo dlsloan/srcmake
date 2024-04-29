@@ -6,22 +6,32 @@ import asyncfn as _async
 
 from pathlib import Path as _Path
 
-class FileDepBuilderBase:
-    _file_types: _t.Dict[str, 'FileDepBuilderBase'] = {}
+class FileBuilderBase:
+    _file_types: _t.Dict[str, 'FileBuilderBase'] = {}
 
     suffix: str
-    fn: _t.Optional[_t.Callable[['BuildEnv', _Path], _async.AsyncValue[_t.List[_Path]]]]
+    dep_fn: _t.Optional[_t.Callable[['BuildEnv', _Path], _async.AsyncValue[_t.List[_Path]]]]
+    build_fn: _t.Optional[_t.Callable[['BuildEnv', 'BuildFile'], None]]
 
-    def __init__(self, suffix: str):
+    def __init__(self, suffix: str) -> None:
         if suffix != '' and '.' not in suffix:
             suffix = '.' + suffix
         self.suffix = suffix.lower()
-        self.fn = None
-        assert suffix not in self._file_types
-        self._file_types[suffix] = self
+        self.dep_fn = None
+        self.build_fn = None
 
-class FileDepBuilder(FileDepBuilderBase):
-    def __init__(self, suffix: str):
+    def _assign_dep_fn(self, fn: _t.Callable[['BuildEnv', _Path], _async.AsyncValue[_t.List[_Path]]]) -> None:
+        if self.suffix not in self._file_types:
+            self._file_types[self.suffix] = self
+        self._file_types[self.suffix].dep_fn = fn
+
+    def _assign_build_fn(self, fn: _t.Callable[['BuildEnv', 'BuildFile'], None]) -> None:
+        if self.suffix not in self._file_types:
+            self._file_types[self.suffix] = self
+        self._file_types[self.suffix].build_fn = fn
+
+class FileDepBuilder(FileBuilderBase):
+    def __init__(self, suffix: str) -> None:
         super().__init__(suffix)
 
     def __call__(self, fn: _t.Callable[['BuildEnv', _Path], _t.List[_Path]]) -> _t.Callable[['BuildEnv', _Path], _t.List[_Path]]:
@@ -29,15 +39,23 @@ class FileDepBuilder(FileDepBuilderBase):
             aval: _async.AsyncValue[_t.List[_Path]] = _async.AsyncValue(lambda: fn(env, path))
             aval.begin(env.pool)
             return aval
-        self.fn = run
+        self._assign_dep_fn(run)
         return fn
     
-class AsyncFileDepBuilder(FileDepBuilderBase):
-    def __init__(self, suffix: str):
+class AsyncFileDepBuilder(FileBuilderBase):
+    def __init__(self, suffix: str) -> None:
         super().__init__(suffix)
 
     def __call__(self, fn: _t.Callable[['BuildEnv', _Path], _async.AsyncValue[_t.List[_Path]]]) -> _t.Callable[['BuildEnv', _Path], _async.AsyncValue[_t.List[_Path]]]:
-        self.fn = fn
+        self._assign_dep_fn(fn)
+        return fn
+    
+class FileBuilder(FileBuilderBase):
+    def __init__(self, suffix: str)-> None:
+        super().__init__(suffix)
+    
+    def __call__(self, fn: _t.Callable[['BuildEnv', 'BuildFile'], None]) -> _t.Callable[['BuildEnv', 'BuildFile'], None]:
+        self._assign_build_fn(fn)
         return fn
 
 class BuildFile:
@@ -74,13 +92,50 @@ class BuildEnv:
         suffix = path.suffix.lower()
         if suffix not in FileDepBuilder._file_types:
             raise Exception(f"Unknown file type: \"{suffix}\", {path}")
-        fbuilder = FileDepBuilderBase._file_types[suffix]
-        assert fbuilder.fn is not None
+        fbuilder = FileBuilderBase._file_types[suffix]
+        assert fbuilder.dep_fn is not None, f"No dep scanner for type: \"{suffix}\", {path}"
 
         file = BuildFile(path)
         self.files[path] = file
-        aval = fbuilder.fn(self, path)
+        aval = fbuilder.dep_fn(self, path)
         aval.on_complete(lambda val: file._set(val.value()))
+        return aval
+
+    def build(self, _path: _t.Union[_Path, str]) -> _async.AsyncValue[float]:
+        def run() -> float:
+            path = _Path(_path)
+            if path in self.files:
+                deps = self.files[path].deps.value()
+            else:
+                deps = self.deps(path).value()
+
+            targ_mtime: float
+            if path.exists():
+                targ_mtime = path.stat().st_mtime
+            else:
+                targ_mtime = 0
+
+            newest_dep: float = 0
+
+            pending: _t.List[_async.AsyncValue[float]] = []
+            for d in deps:
+                pending.append(self.build(d))
+            for p in pending:
+                newest_dep = max(newest_dep, p.value())
+
+            suffix = path.suffix.lower()
+            if suffix not in FileDepBuilder._file_types:
+                raise Exception(f"Unknown file type: \"{suffix}\", {path}")
+            fbuilder = FileBuilderBase._file_types[suffix]
+            assert fbuilder.build_fn is not None, f"No builder for type: \"{suffix}\", {path}"
+
+            if targ_mtime == 0 or targ_mtime < newest_dep:
+                fbuilder.build_fn(self, self.files[path])
+
+            return path.stat().st_mtime
+
+        aval: _async.AsyncValue[float] = _async.AsyncValue(run)
+        aval.begin(self.pool)
         return aval
 
 @FileDepBuilder('')
@@ -115,12 +170,49 @@ def build_exe_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
                     deps.append(obj_path)
     return deps
 
+@FileBuilder('')
+def build_exe(env: BuildEnv, file: BuildFile) -> None:
+    print('Build:', file.path)
+    _c.run_c_cpp_exe_build('g++', [], obj_paths=file.deps.value(), exe_path=file.path)
+
 @AsyncFileDepBuilder('.o')
 def build_cc_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[_Path]]:
     src_path = path.parent / f"{path.stem}.c"
     return _c.run_c_cpp_deps('gcc', [], src_path)
 
+@FileBuilder('.o')
+def build_cc_obj(env: BuildEnv, file: BuildFile) -> None:
+    src_path = file.path.parent / f"{file.path.stem}.c"
+    print('Build:', src_path, '->', file.path)
+    raise NotImplementedError()
+
+@FileBuilder('.c')
+def build_c_file(env: BuildEnv, file: BuildFile) -> None:
+    pass
+
 @AsyncFileDepBuilder('.o++')
 def build_cxx_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[_Path]]:
     src_path = path.parent / f"{path.stem}.cpp"
     return _c.run_c_cpp_deps('g++', [], src_path)
+
+@FileBuilder('.o++')
+def build_cxx_obj(env: BuildEnv, file: BuildFile) -> None:
+    src_path = file.path.parent / f"{file.path.stem}.cpp"
+    print('Build:', src_path, '->', file.path)
+    _c.run_c_cpp_obj_build('g++', [], src_path=src_path, obj_path=file.path)
+
+@FileDepBuilder('.cpp')
+def build_cpp_file_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
+    return []
+
+@FileBuilder('.cpp')
+def build_cpp_file(env: BuildEnv, file: BuildFile) -> None:
+    pass
+
+@FileDepBuilder('.hpp')
+def build_hpp_file_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
+    return []
+
+@FileBuilder('.hpp')
+def build_hpp_file(env: BuildEnv, file: BuildFile) -> None:
+    pass
