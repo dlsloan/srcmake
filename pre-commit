@@ -2,7 +2,4 @@
 
 set -e
 
-#Messages too self
-cat <<EOF
-TODO: reintroduce tests
-EOF
+python3 pybuild/asyncfn_ut.py -fvvv

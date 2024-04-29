@@ -85,8 +85,20 @@ class BuildEnv:
 
 @FileDepBuilder('')
 def build_exe_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
-    # TODO: check src_cc_path = path.parent / f"{path.stem}.c" / .cpp to support c and c++
-    obj_path = path.parent / f"{path.stem}.o"
+    src_cc_path = path.parent / f"{path.stem}.c"
+    src_cxx_path = path.parent / f"{path.stem}.cpp"
+    if src_cc_path.exists():
+        obj_path = path.parent / f"{path.stem}.o"
+        hdr_suffix = '.h'
+        src_suffix = '.c'
+        obj_suffix = '.o'
+    elif src_cxx_path.exists():
+        obj_path = path.parent / f"{path.stem}.o++"
+        hdr_suffix = '.hpp'
+        src_suffix = '.cpp'
+        obj_suffix = '.o++'
+    else:
+        raise Exception(f"Could not find c++ or c source for target {path}")
     deps = [obj_path]
     pending_deps = [env.deps(obj_path)]
 
@@ -94,10 +106,10 @@ def build_exe_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
         p = pending_deps[0]
         pending_deps = pending_deps[1:]
         for d in p.value():
-            if d.suffix.lower() == '.h':
-                src_path = d.parent / f"{d.stem}.c"
+            if d.suffix.lower() == hdr_suffix:
+                src_path = d.parent / f"{d.stem}{src_path}"
                 if src_path.exists():
-                    obj_path = d.parent / f"{d.stem}.o"
+                    obj_path = d.parent / f"{d.stem}{obj_suffix}"
                 if obj_path not in deps:
                     pending_deps.append(env.deps(obj_path))
                     deps.append(obj_path)
@@ -107,6 +119,11 @@ def build_exe_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
 def build_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[_Path]]:
     src_path = path.parent / f"{path.stem}.c"
     return _c.run_c_cpp_deps('gcc', [], src_path)
+
+@AsyncFileDepBuilder('.o++')
+def build_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[_Path]]:
+    src_path = path.parent / f"{path.stem}.cpp"
+    return _c.run_c_cpp_deps('g++', [], src_path)
 
 env = BuildEnv()
 root = _Path('lua-safe/src/lua')
