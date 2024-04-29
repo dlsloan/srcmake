@@ -107,7 +107,7 @@ def build_exe_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
         pending_deps = pending_deps[1:]
         for d in p.value():
             if d.suffix.lower() == hdr_suffix:
-                src_path = d.parent / f"{d.stem}{src_path}"
+                src_path = d.parent / f"{d.stem}{src_suffix}"
                 if src_path.exists():
                     obj_path = d.parent / f"{d.stem}{obj_suffix}"
                 if obj_path not in deps:
@@ -116,20 +116,11 @@ def build_exe_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
     return deps
 
 @AsyncFileDepBuilder('.o')
-def build_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[_Path]]:
+def build_cc_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[_Path]]:
     src_path = path.parent / f"{path.stem}.c"
     return _c.run_c_cpp_deps('gcc', [], src_path)
 
 @AsyncFileDepBuilder('.o++')
-def build_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[_Path]]:
+def build_cxx_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[_Path]]:
     src_path = path.parent / f"{path.stem}.cpp"
     return _c.run_c_cpp_deps('g++', [], src_path)
-
-env = BuildEnv()
-root = _Path('lua-safe/src/lua')
-print(env.deps(root).value())
-print(root)
-for d in env.files[root].deps.value():
-    print(f"\t{d}")
-    for dd in env.deps(d).value():
-        print(f"\t\t{dd}")
