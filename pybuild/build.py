@@ -1,5 +1,7 @@
 import argparse
 import buildfile
+import shlex
+import subprocess as sp
 
 from pathlib import Path
 
@@ -17,4 +19,14 @@ if __name__ == '__main__':
     else:
         print(f"Error: expected .c or .cpp file not {targ.suffix}:", targ)
     env = buildfile.BuildEnv()
-    env.build(targ).value()
+    try:
+        env.build(targ).value()
+    except sp.CalledProcessError as err:
+        print(*[shlex.quote(c) for c in err.cmd])
+        lines = err.stderr.strip().split('\n')
+        if len(lines) > 40:
+            lines = lines[:40]
+        for l in lines:
+            print(l)
+        print("!!!Build ERROR!!!")
+        exit(1)

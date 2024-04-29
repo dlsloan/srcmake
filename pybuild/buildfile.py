@@ -184,10 +184,22 @@ def build_cc_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[_
 def build_cc_obj(env: BuildEnv, file: BuildFile) -> None:
     src_path = file.path.parent / f"{file.path.stem}.c"
     print('Build:', src_path, '->', file.path)
-    raise NotImplementedError()
+    _c.run_c_cpp_obj_build('gcc', [], src_path=src_path, obj_path=file.path)
+
+@FileDepBuilder('.c')
+def build_c_file_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
+    return []
 
 @FileBuilder('.c')
 def build_c_file(env: BuildEnv, file: BuildFile) -> None:
+    pass
+
+@FileDepBuilder('.h')
+def build_h_file_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
+    return []
+
+@FileBuilder('.h')
+def build_h_file(env: BuildEnv, file: BuildFile) -> None:
     pass
 
 @AsyncFileDepBuilder('.o++')
