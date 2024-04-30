@@ -2,6 +2,7 @@ import mypycheck as _chk; _chk.check(__file__)
 
 import asyncfn as _async
 import compilers as _c
+import threading as _thr
 import typing as _t
 import sys as _sys
 
@@ -78,15 +79,19 @@ class BuildFile:
         self._deps.set_err(err)
 
 class BuildEnv:
+    _lck: _thr.Lock
     pool: _async.AsyncPool
     files: _t.Dict[_Path, BuildFile]
+    _build_results: _t.Dict[_Path, _async.AsyncValue[float]]
     verbosity: int=0
     cc_flags: _t.List[str]
     cxx_flags: _t.List[str]
 
     def __init__(self) -> None:
+        self._lck = _thr.Lock()
         self.pool = _async.AsyncPool()
         self.files = {}
+        self._build_results = {}
         self.cc_flags = ['-Wall', '-Werror']
         self.cxx_flags = ['-Wall', '-Werror']
 
@@ -104,29 +109,27 @@ class BuildEnv:
                 scanned.add(d)
 
     def deps(self, _path: _t.Union[_Path, str]) -> _async.AsyncValue[_t.List[_Path]]:
-        path = _Path(_path)
-        if path in self.files:
-            return self.files[path].deps
+        with self._lck:
+            path = _Path(_path)
+            if path in self.files:
+                return self.files[path].deps
 
-        suffix = path.suffix.lower()
-        if suffix not in FileDepBuilder._file_types:
-            raise Exception(f"Unknown file type: \"{suffix}\", {path}")
-        fbuilder = FileBuilderBase._file_types[suffix]
-        assert fbuilder.dep_fn is not None, f"No dep scanner for type: \"{suffix}\", {path}"
+            suffix = path.suffix.lower()
+            if suffix not in FileDepBuilder._file_types:
+                raise Exception(f"Unknown file type: \"{suffix}\", {path}")
+            fbuilder = FileBuilderBase._file_types[suffix]
+            assert fbuilder.dep_fn is not None, f"No dep scanner for type: \"{suffix}\", {path}"
 
-        file = BuildFile(path)
-        self.files[path] = file
-        aval = fbuilder.dep_fn(self, path)
-        aval.on_complete(lambda val: file._set(val.value()))
-        return aval
+            file = BuildFile(path)
+            self.files[path] = file
+            aval = fbuilder.dep_fn(self, path)
+            aval.on_complete(lambda val: file._set(val.value()))
+            return aval
 
     def build(self, _path: _t.Union[_Path, str]) -> _async.AsyncValue[float]:
         def run() -> _t.Iterator[_t.Any]:
             path = _Path(_path)
-            if path in self.files:
-                adeps = self.files[path].deps
-            else:
-                adeps = self.deps(path)
+            adeps = self.deps(path)
 
             while not adeps.is_done():
                 yield
@@ -159,9 +162,13 @@ class BuildEnv:
 
             return path.stat().st_mtime
 
-        aval: _async.AsyncValue[float] = _async.AsyncValue(run)
-        aval.begin(self.pool)
-        return aval
+        with self._lck:
+            if _Path(_path) in self._build_results:
+                return self._build_results[_Path(_path)]
+            aval: _async.AsyncValue[float] = _async.AsyncValue(run)
+            aval.begin(self.pool)
+            self._build_results[_Path(_path)] = aval
+            return aval
 
 @FileDepBuilder('.jbin')
 def build_jbin_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
