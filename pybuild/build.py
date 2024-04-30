@@ -11,6 +11,8 @@ if __name__ == '__main__':
     parser.add_argument('--clean', action='store_true')
     parser.add_argument('--hex', action='store_true')
     parser.add_argument('--jbin', action='store_true', help='Pack binary into json binary format (hopefully self documenting?)')
+    parser.add_argument('--run-target', '-r', action='store_true', help='run target after building')
+    # TODO: --debug, -d target (auto-start dgb)
     args = parser.parse_args()
     targ = Path(args.target)
     if targ.suffix == '':
@@ -50,3 +52,7 @@ if __name__ == '__main__':
                 print(l)
             print("!!!Build ERROR!!!")
             exit(1)
+        if args.run_target:
+            # TODO: run jbin targets in emulator
+            assert targ.suffix == '', "Only exe targets supported right now"
+            sp.call([targ])
