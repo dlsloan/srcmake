@@ -23,7 +23,7 @@ if __name__ == '__main__':
     parser.add_argument('target')
     parser.add_argument('--clean', '-c', action='store_true')
     parser.add_argument('--build', action='store_true', help='Enforce project building (overrides exit on clean)')
-    parser.add_argument('--hex', action='store_true')
+    parser.add_argument('--hex', action='store_true', help='Unpack elf exe into intel hex data')
     parser.add_argument('--jbin', action='store_true', help='Pack binary into json binary format (hopefully self documenting?)')
     parser.add_argument('--run-target', '-r', action='store_true', help='run target after building')
     parser.add_argument('--debug', '-g', action='store_true', help='Enable debug mode and start application in debugger if --run-target is also specified')
