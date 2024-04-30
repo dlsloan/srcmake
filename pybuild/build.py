@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import mypycheck as _chk; _chk.check(__file__)
 
 import argparse
