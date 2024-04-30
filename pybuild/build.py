@@ -60,9 +60,14 @@ if __name__ == '__main__':
 
     env = buildfile.BuildEnv()
     env.verbosity = args.verbose
+
     if args.debug:
         env.cc_flags.extend(['-g', '-O0'])
         env.cxx_flags.extend(['-g', '-O0'])
+    else:
+        env.cc_flags.extend(['-O3'])
+        env.cxx_flags.extend(['-O3'])
+
     if args.clean:
         build_outputs = {
             '.jbin', '.hex', '.o', '.o++', ''
