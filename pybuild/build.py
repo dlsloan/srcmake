@@ -1,3 +1,5 @@
+import mypycheck as _chk; _chk.check(__file__)
+
 import argparse
 import buildfile
 import shlex
