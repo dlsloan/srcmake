@@ -2,6 +2,7 @@ import argparse
 import buildfile
 import shlex
 import subprocess as sp
+import sys
 
 from pathlib import Path
 
@@ -24,7 +25,7 @@ if __name__ == '__main__':
         assert not Path(targ.parent / f"{targ.stem}.cpp").exists()
         targ = targ.parent / targ.stem
     else:
-        print(f"Error: expected .c or .cpp file not {targ.suffix}:", targ)
+        print(f"Error: expected .c or .cpp file not {targ.suffix}:", targ, file=sys.stderr)
 
     if args.jbin:
         targ = targ.parent / f"{targ.stem}.jbin"
@@ -44,13 +45,13 @@ if __name__ == '__main__':
         try:
             env.build(targ).value()
         except sp.CalledProcessError as err:
-            print(*[shlex.quote(c) for c in err.cmd])
+            print(*[shlex.quote(c) for c in err.cmd], file=sys.stderr)
             lines = err.stderr.strip().split('\n')
             if len(lines) > 40:
                 lines = lines[:40]
             for l in lines:
-                print(l)
-            print("!!!Build ERROR!!!")
+                print(l, file=sys.stderr)
+            print("!!!Build ERROR!!!", file=sys.stderr)
             exit(1)
         if args.run_target:
             # TODO: run jbin targets in emulator

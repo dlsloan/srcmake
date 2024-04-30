@@ -1,8 +1,9 @@
 import mypycheck as _chk; _chk.check(__file__)
 
+import asyncfn as _async
 import compilers as _c
 import typing as _t
-import asyncfn as _async
+import sys as _sys
 
 from pathlib import Path as _Path
 
@@ -161,7 +162,7 @@ def build_jbin_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
 @FileBuilder('.jbin')
 def build_jbin(env: BuildEnv, file: BuildFile) -> None:
     hex_path = file.path.parent / f"{file.path.stem}.hex"
-    print('Build:', file.path)
+    print('Build:', file.path, file=_sys.stderr)
     _c.run_jbin_build(hex_path=hex_path, jbin_path=file.path)
 
 @FileDepBuilder('.hex')
@@ -172,7 +173,7 @@ def build_hex_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
 @FileBuilder('.hex')
 def build_hex(env: BuildEnv, file: BuildFile) -> None:
     exe_path = file.path.parent / f"{file.path.stem}"
-    print('Build:', file.path)
+    print('Build:', file.path, file=_sys.stderr)
     _c.run_hex_build('objcopy', [], exe_path=exe_path, hex_path=file.path)
 
 @FileDepBuilder('')
@@ -209,7 +210,7 @@ def build_exe_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
 
 @FileBuilder('')
 def build_exe(env: BuildEnv, file: BuildFile) -> None:
-    print('Build:', file.path)
+    print('Build:', file.path, file=_sys.stderr)
     _c.run_c_cpp_exe_build('g++', [], obj_paths=file.deps.value(), exe_path=file.path)
 
 @AsyncFileDepBuilder('.o')
@@ -220,7 +221,7 @@ def build_c_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[_P
 @FileBuilder('.o')
 def build_cc_obj(env: BuildEnv, file: BuildFile) -> None:
     src_path = file.path.parent / f"{file.path.stem}.c"
-    print('Build:', src_path, '->', file.path)
+    print('Build:', src_path, '->', file.path, file=_sys.stderr)
     _c.run_c_cpp_obj_build('gcc', [], src_path=src_path, obj_path=file.path)
 
 @FileDepBuilder('.c')
@@ -247,7 +248,7 @@ def build_cxx_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[
 @FileBuilder('.o++')
 def build_cxx_obj(env: BuildEnv, file: BuildFile) -> None:
     src_path = file.path.parent / f"{file.path.stem}.cpp"
-    print('Build:', src_path, '->', file.path)
+    print('Build:', src_path, '->', file.path, file=_sys.stderr)
     _c.run_c_cpp_obj_build('g++', [], src_path=src_path, obj_path=file.path)
 
 @FileDepBuilder('.cpp')
