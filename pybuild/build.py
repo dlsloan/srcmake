@@ -12,7 +12,7 @@ from pathlib import Path
 gdb_cmd = """
 set $_exitcode = -999
 catch throw
-r
+r {args}
 if $_exitcode != -999
     q
 end
@@ -26,10 +26,20 @@ if __name__ == '__main__':
     parser.add_argument('--hex', action='store_true')
     parser.add_argument('--jbin', action='store_true', help='Pack binary into json binary format (hopefully self documenting?)')
     parser.add_argument('--run-target', '-r', action='store_true', help='run target after building')
-    parser.add_argument('--debug', '-d', action='store_true', help='Enable debug mode and start application in debugger if --run-target is also specified')
+    parser.add_argument('--debug', '-g', action='store_true', help='Enable debug mode and start application in debugger if --run-target is also specified')
     parser.add_argument('-v', '--verbose', action='count', default=0)
-    # TODO: --debug, -d target (auto-start dgb)
-    args = parser.parse_args()
+
+    # pull run args out after --
+    run_args = []
+    app_argv = sys.argv
+    for i in range(len(sys.argv)):
+        if sys.argv[i] == '--':
+            run_args = sys.argv[i+1:]
+            app_argv = sys.argv[:i]
+            break
+
+    args = parser.parse_args(app_argv[1:])
+
     targ = Path(args.target)
     if targ.suffix == '':
         pass # short hand for easy tab conpletion on rebuilds
@@ -80,7 +90,13 @@ if __name__ == '__main__':
             with tempfile.NamedTemporaryFile() as tmp_file:
                 gdb_cmd_path = Path(tmp_file.name)
                 with gdb_cmd_path.open('w') as gdb_cmd_file:
-                    gdb_cmd_file.write(gdb_cmd)
-                sp.call(['gdb', '-return-child-result', '-x', str(gdb_cmd_path), str(targ)])
+                    gdb_cmd_file.write(gdb_cmd.format(args=' '.join(shlex.quote(o) for o in run_args)))
+                cmd = ['gdb', '-return-child-result', '-x', str(gdb_cmd_path), str(targ)]
+                if args.verbose > 0:
+                    print(*[shlex.quote(c) for c in cmd], file=sys.stderr)
+                sp.call(cmd)
         else:
-            sp.call([targ])
+            cmd = [str(targ)] + run_args
+            if args.verbose > 0:
+                print(*[shlex.quote(c) for c in cmd], file=sys.stderr)
+            sp.call(cmd)
