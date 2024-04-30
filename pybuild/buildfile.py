@@ -124,9 +124,13 @@ class BuildEnv:
         def run() -> _t.Iterator[_t.Any]:
             path = _Path(_path)
             if path in self.files:
-                deps = self.files[path].deps.value()
+                adeps = self.files[path].deps
             else:
-                deps = self.deps(path).value()
+                adeps = self.deps(path)
+
+            while not adeps.is_done():
+                yield
+            deps = adeps.value()
 
             targ_mtime: float
             if path.exists():
