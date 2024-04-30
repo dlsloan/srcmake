@@ -10,6 +10,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('target')
     parser.add_argument('--clean', '-c', action='store_true')
+    parser.add_argument('--build', action='store_true', help='Enforce project building (overrides exit on clean)')
     parser.add_argument('--hex', action='store_true')
     parser.add_argument('--jbin', action='store_true', help='Pack binary into json binary format (hopefully self documenting?)')
     parser.add_argument('--run-target', '-r', action='store_true', help='run target after building')
@@ -41,7 +42,7 @@ if __name__ == '__main__':
         for path in env.files:
             if path.exists() and path.suffix.lower() in build_outputs:
                 path.unlink()
-        if not args.run_target:
+        if not args.run_target and not args.build:
             exit(0)
     try:
         env.build(targ).value()
