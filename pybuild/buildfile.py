@@ -84,6 +84,19 @@ class BuildEnv:
         self.pool = _async.AsyncPool()
         self.files = {}
 
+    def scan_deps(self, _path: _t.Union[_Path, str]) -> None:
+        path = _Path(_path)
+        scanned = {path}
+        pending = [self.deps(path)]
+        while len(pending) > 0:
+            ds = pending[0].value()
+            pending = pending[1:]
+            for d in ds:
+                if d in scanned:
+                    continue
+                pending.append(self.deps(d))
+                scanned.add(d)
+
     def deps(self, _path: _t.Union[_Path, str]) -> _async.AsyncValue[_t.List[_Path]]:
         path = _Path(_path)
         if path in self.files:
@@ -102,7 +115,7 @@ class BuildEnv:
         return aval
 
     def build(self, _path: _t.Union[_Path, str]) -> _async.AsyncValue[float]:
-        def run() -> float:
+        def run() -> _t.Iterator[_t.Any]:
             path = _Path(_path)
             if path in self.files:
                 deps = self.files[path].deps.value()
@@ -121,6 +134,8 @@ class BuildEnv:
             for d in deps:
                 pending.append(self.build(d))
             for p in pending:
+                while not p.is_done():
+                    yield
                 newest_dep = max(newest_dep, p.value())
 
             suffix = path.suffix.lower()
@@ -137,6 +152,28 @@ class BuildEnv:
         aval: _async.AsyncValue[float] = _async.AsyncValue(run)
         aval.begin(self.pool)
         return aval
+
+@FileDepBuilder('.jbin')
+def build_jbin_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
+    hex_path = path.parent / f"{path.stem}.hex"
+    return [hex_path]
+
+@FileBuilder('.jbin')
+def build_jbin(env: BuildEnv, file: BuildFile) -> None:
+    hex_path = file.path.parent / f"{file.path.stem}.hex"
+    print('Build:', file.path)
+    _c.run_jbin_build(hex_path=hex_path, jbin_path=file.path)
+
+@FileDepBuilder('.hex')
+def build_hex_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
+    exe_path = path.parent / f"{path.stem}"
+    return [exe_path]
+
+@FileBuilder('.hex')
+def build_hex(env: BuildEnv, file: BuildFile) -> None:
+    exe_path = file.path.parent / f"{file.path.stem}"
+    print('Build:', file.path)
+    _c.run_hex_build('objcopy', [], exe_path=exe_path, hex_path=file.path)
 
 @FileDepBuilder('')
 def build_exe_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
@@ -176,7 +213,7 @@ def build_exe(env: BuildEnv, file: BuildFile) -> None:
     _c.run_c_cpp_exe_build('g++', [], obj_paths=file.deps.value(), exe_path=file.path)
 
 @AsyncFileDepBuilder('.o')
-def build_cc_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[_Path]]:
+def build_c_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[_Path]]:
     src_path = path.parent / f"{path.stem}.c"
     return _c.run_c_cpp_deps('gcc', [], src_path)
 

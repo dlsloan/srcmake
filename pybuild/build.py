@@ -9,6 +9,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('target')
     parser.add_argument('--clean', action='store_true')
+    parser.add_argument('--hex', action='store_true')
+    parser.add_argument('--jbin', action='store_true', help='Pack binary into json binary format (hopefully self documenting?)')
     args = parser.parse_args()
     targ = Path(args.target)
     if targ.suffix == '':
@@ -21,12 +23,18 @@ if __name__ == '__main__':
         targ = targ.parent / targ.stem
     else:
         print(f"Error: expected .c or .cpp file not {targ.suffix}:", targ)
+
+    if args.jbin:
+        targ = targ.parent / f"{targ.stem}.jbin"
+    elif args.hex:
+        targ = targ.parent / f"{targ.stem}.hex"
+
     env = buildfile.BuildEnv()
     if args.clean:
         build_outputs = {
-            '.o', '.o++', ''
+            '.jbin', '.hex', '.o', '.o++', ''
         }
-        env.deps(targ).value()
+        env.scan_deps(targ)
         for path in env.files:
             if path.exists() and path.suffix.lower() in build_outputs:
                 path.unlink()
