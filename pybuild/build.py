@@ -27,6 +27,7 @@ if __name__ == '__main__':
     parser.add_argument('--jbin', action='store_true', help='Pack binary into json binary format (hopefully self documenting?)')
     parser.add_argument('--run-target', '-r', action='store_true', help='run target after building')
     parser.add_argument('--debug', '-d', action='store_true', help='Enable debug mode and start application in debugger if --run-target is also specified')
+    parser.add_argument('-v', '--verbose', action='count', default=0)
     # TODO: --debug, -d target (auto-start dgb)
     args = parser.parse_args()
     targ = Path(args.target)
@@ -47,6 +48,7 @@ if __name__ == '__main__':
         targ = targ.parent / f"{targ.stem}.hex"
 
     env = buildfile.BuildEnv()
+    env.verbosity = args.verbose
     if args.debug:
         env.cc_flags.extend(['-g', '-O0'])
         env.cxx_flags.extend(['-g', '-O0'])

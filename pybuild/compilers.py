@@ -1,9 +1,11 @@
 import mypycheck as _chk; _chk.check(__file__)
 
 import asyncfn as _async
-import subprocess as _sp
-import typing as _t
 import base64 as _b64
+import shlex as _sh
+import subprocess as _sp
+import sys as _sys
+import typing as _t
 
 from pathlib import Path as _Path
 
@@ -29,38 +31,54 @@ def _parse_dep_output(output: str) -> _t.List[_Path]:
         output = output[1:]
     return [_Path(s) for s in parts[1:]]
 
-def run_c_cpp_deps(compiler: str, args: _t.Sequence[str], path: _t.Union[str, _Path]) -> _async.AsyncValue[_t.List[_Path]]:
+def run_c_cpp_deps(compiler: str, args: _t.Sequence[str], path: _t.Union[str, _Path], verbosity: int=0) -> _async.AsyncValue[_t.List[_Path]]:
     def run() -> _t.Iterable[_Path]:
         src = _Path(path)
         cmd = [compiler]
         cmd += args
         cmd += ['-MM', '-MG', '-fdiagnostics-color', str(src)]
+        if verbosity > 1:
+            print(*[_sh.quote(c) for c in cmd], file=_sys.stderr)
         output = _sp.check_output(args=cmd, encoding='utf-8', stderr=_sp.PIPE)
         assert isinstance(output, str)
         output = output.strip()
         return _parse_dep_output(output)
     return _async.AsyncValue(run)
 
-def run_c_cpp_obj_build(compiler: str, args: _t.Sequence[str], src_path: _Path, obj_path: _Path) -> None:
+def run_c_cpp_obj_build(compiler: str, args: _t.Sequence[str], src_path: _Path, obj_path: _Path, verbosity: int=0) -> None:
     cmd = [compiler]
     cmd += args
     cmd += ['-c', '-o', str(obj_path), str(src_path)]
-    _sp.check_output(args=cmd, encoding='utf-8', stderr=_sp.PIPE)
+    if verbosity > 0:
+        print(*[_sh.quote(c) for c in cmd], file=_sys.stderr)
+    out = _sp.check_output(args=cmd, encoding='utf-8', stderr=_sp.PIPE).strip()
+    if verbosity > 2 and out != '':
+        print(out, file=_sys.stderr)
 
-def run_c_cpp_exe_build(compiler: str, args: _t.Sequence[str], obj_paths: _t.Sequence[_Path], exe_path: _Path) -> None:
+def run_c_cpp_exe_build(compiler: str, args: _t.Sequence[str], obj_paths: _t.Sequence[_Path], exe_path: _Path, verbosity: int=0) -> None:
     cmd = [compiler]
     cmd += args
     cmd += ['-o', str(exe_path)]
     cmd += [str(p) for p in obj_paths]
-    _sp.check_output(args=cmd, encoding='utf-8', stderr=_sp.PIPE)
+    if verbosity > 0:
+        print(*[_sh.quote(c) for c in cmd], file=_sys.stderr)
+    out = _sp.check_output(args=cmd, encoding='utf-8', stderr=_sp.PIPE).strip()
+    if verbosity > 2 and out != '':
+        print(out, file=_sys.stderr)
 
-def run_hex_build(compiler: str, args: _t.Sequence[str], exe_path: _Path, hex_path: _Path) -> None:
+def run_hex_build(compiler: str, args: _t.Sequence[str], exe_path: _Path, hex_path: _Path, verbosity: int=0) -> None:
     cmd = [compiler]
     cmd += args
     cmd += ['-O', 'ihex', str(exe_path), str(hex_path)]
-    _sp.check_output(args=cmd, encoding='utf-8', stderr=_sp.PIPE)
+    if verbosity > 0:
+        print(*[_sh.quote(c) for c in cmd], file=_sys.stderr)
+    out = _sp.check_output(args=cmd, encoding='utf-8', stderr=_sp.PIPE).strip()
+    if verbosity > 2 and out != '':
+        print(out, file=_sys.stderr)
 
-def run_jbin_build(hex_path: _Path, jbin_path: _Path) -> None:
+def run_jbin_build(hex_path: _Path, jbin_path: _Path, verbosity: int=0) -> None:
+    if verbosity > 0:
+        print('hex-jbin', _sh.quote(str(hex_path)), _sh.quote(str(jbin_path)), file=_sys.stderr)
     try:
         with hex_path.open('r') as hex_file, jbin_path.open('w') as jbin_file:
             # Intel hex decoder
