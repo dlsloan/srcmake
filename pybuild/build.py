@@ -5,8 +5,18 @@ import buildfile
 import shlex
 import subprocess as sp
 import sys
+import tempfile
 
 from pathlib import Path
+
+gdb_cmd = """
+set $_exitcode = -999
+catch throw
+r
+if $_exitcode != -999
+    q
+end
+"""
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -16,6 +26,7 @@ if __name__ == '__main__':
     parser.add_argument('--hex', action='store_true')
     parser.add_argument('--jbin', action='store_true', help='Pack binary into json binary format (hopefully self documenting?)')
     parser.add_argument('--run-target', '-r', action='store_true', help='run target after building')
+    parser.add_argument('--debug', '-d', action='store_true', help='Enable debug mode and start application in debugger if --run-target is also specified')
     # TODO: --debug, -d target (auto-start dgb)
     args = parser.parse_args()
     targ = Path(args.target)
@@ -36,6 +47,9 @@ if __name__ == '__main__':
         targ = targ.parent / f"{targ.stem}.hex"
 
     env = buildfile.BuildEnv()
+    if args.debug:
+        env.cc_flags.extend(['-g', '-O0'])
+        env.cxx_flags.extend(['-g', '-O0'])
     if args.clean:
         build_outputs = {
             '.jbin', '.hex', '.o', '.o++', ''
@@ -60,4 +74,11 @@ if __name__ == '__main__':
     if args.run_target:
         # TODO: run jbin targets in emulator
         assert targ.suffix == '', "Only exe targets supported right now"
-        sp.call([targ])
+        if args.debug:
+            with tempfile.NamedTemporaryFile() as tmp_file:
+                gdb_cmd_path = Path(tmp_file.name)
+                with gdb_cmd_path.open('w') as gdb_cmd_file:
+                    gdb_cmd_file.write(gdb_cmd)
+                sp.call(['gdb', '-return-child-result', '-x', str(gdb_cmd_path), str(targ)])
+        else:
+            sp.call([targ])

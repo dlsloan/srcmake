@@ -80,6 +80,8 @@ class BuildFile:
 class BuildEnv:
     pool: _async.AsyncPool
     files: _t.Dict[_Path, BuildFile]
+    cc_flags: _t.List[str]=[]
+    cxx_flags: _t.List[str]=[]
 
     def __init__(self) -> None:
         self.pool = _async.AsyncPool()
@@ -210,19 +212,28 @@ def build_exe_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
 
 @FileBuilder('')
 def build_exe(env: BuildEnv, file: BuildFile) -> None:
+    first_dep: _t.Optional[_Path]=None
+    for d in file.deps.value():
+        first_dep = d
+    assert first_dep is not None, f"Something went wrong, no deps found for: {file.path}"
     print('Build:', file.path, file=_sys.stderr)
-    _c.run_c_cpp_exe_build('g++', [], obj_paths=file.deps.value(), exe_path=file.path)
+    if first_dep.suffix.lower() == '.o++':
+        _c.run_c_cpp_exe_build('g++', env.cxx_flags, obj_paths=file.deps.value(), exe_path=file.path)
+    elif first_dep.suffix.lower() == '.o':
+        _c.run_c_cpp_exe_build('gcc', env.cc_flags, obj_paths=file.deps.value(), exe_path=file.path)
+    else:
+        raise Exception(f"Something when wrong, deps should be either .o or .o++, found: {first_dep.suffix}")
 
 @AsyncFileDepBuilder('.o')
 def build_c_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[_Path]]:
     src_path = path.parent / f"{path.stem}.c"
-    return _c.run_c_cpp_deps('gcc', [], src_path)
+    return _c.run_c_cpp_deps('gcc', env.cc_flags, src_path)
 
 @FileBuilder('.o')
 def build_cc_obj(env: BuildEnv, file: BuildFile) -> None:
     src_path = file.path.parent / f"{file.path.stem}.c"
     print('Build:', src_path, '->', file.path, file=_sys.stderr)
-    _c.run_c_cpp_obj_build('gcc', [], src_path=src_path, obj_path=file.path)
+    _c.run_c_cpp_obj_build('gcc', env.cc_flags, src_path=src_path, obj_path=file.path)
 
 @FileDepBuilder('.c')
 def build_c_file_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
@@ -243,13 +254,13 @@ def build_h_file(env: BuildEnv, file: BuildFile) -> None:
 @AsyncFileDepBuilder('.o++')
 def build_cxx_obj_deps(env: BuildEnv, path: _Path) -> _async.AsyncValue[_t.List[_Path]]:
     src_path = path.parent / f"{path.stem}.cpp"
-    return _c.run_c_cpp_deps('g++', [], src_path)
+    return _c.run_c_cpp_deps('g++', env.cxx_flags, src_path)
 
 @FileBuilder('.o++')
 def build_cxx_obj(env: BuildEnv, file: BuildFile) -> None:
     src_path = file.path.parent / f"{file.path.stem}.cpp"
     print('Build:', src_path, '->', file.path, file=_sys.stderr)
-    _c.run_c_cpp_obj_build('g++', [], src_path=src_path, obj_path=file.path)
+    _c.run_c_cpp_obj_build('g++', env.cxx_flags, src_path=src_path, obj_path=file.path)
 
 @FileDepBuilder('.cpp')
 def build_cpp_file_deps(env: BuildEnv, path: _Path) -> _t.List[_Path]:
