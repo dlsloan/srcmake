@@ -9,7 +9,7 @@ from pathlib import Path
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('target')
-    parser.add_argument('--clean', action='store_true')
+    parser.add_argument('--clean', '-c', action='store_true')
     parser.add_argument('--hex', action='store_true')
     parser.add_argument('--jbin', action='store_true', help='Pack binary into json binary format (hopefully self documenting?)')
     parser.add_argument('--run-target', '-r', action='store_true', help='run target after building')
@@ -41,19 +41,20 @@ if __name__ == '__main__':
         for path in env.files:
             if path.exists() and path.suffix.lower() in build_outputs:
                 path.unlink()
-    else:
-        try:
-            env.build(targ).value()
-        except sp.CalledProcessError as err:
-            print(*[shlex.quote(c) for c in err.cmd], file=sys.stderr)
-            lines = err.stderr.strip().split('\n')
-            if len(lines) > 40:
-                lines = lines[:40]
-            for l in lines:
-                print(l, file=sys.stderr)
-            print("!!!Build ERROR!!!", file=sys.stderr)
-            exit(1)
-        if args.run_target:
-            # TODO: run jbin targets in emulator
-            assert targ.suffix == '', "Only exe targets supported right now"
-            sp.call([targ])
+        if not args.run_target:
+            exit(0)
+    try:
+        env.build(targ).value()
+    except sp.CalledProcessError as err:
+        print(*[shlex.quote(c) for c in err.cmd], file=sys.stderr)
+        lines = err.stderr.strip().split('\n')
+        if len(lines) > 40:
+            lines = lines[:40]
+        for l in lines:
+            print(l, file=sys.stderr)
+        print("!!!Build ERROR!!!", file=sys.stderr)
+        exit(1)
+    if args.run_target:
+        # TODO: run jbin targets in emulator
+        assert targ.suffix == '', "Only exe targets supported right now"
+        sp.call([targ])
