@@ -78,6 +78,9 @@ class BuildFile:
     def _err(self, err: Exception) -> None:
         self._deps.set_err(err)
 
+# TODO: *** Path normilization, right now it is probably possible to store
+#           the same file multiple times in the build env. paths should be
+#           resolved and normalized to prevent this!                      ***
 class BuildEnv:
     _lck: _thr.Lock
     pool: _async.AsyncPool
