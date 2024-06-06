@@ -96,7 +96,7 @@ class BuildEnv:
         self.files = {}
         self._build_results = {}
         self.cc_flags = ['-Wall', '-Werror']
-        self.cxx_flags = ['-Wall', '-Werror']
+        self.cxx_flags = ['-Wall', '-Werror', '-std=c++17']
 
     def scan_deps(self, _path: _t.Union[_Path, str]) -> None:
         path = _Path(_path)
