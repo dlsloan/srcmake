@@ -185,28 +185,14 @@ def run_c_cpp_deps(compiler: str, args: _t.Sequence[str], path: _t.Union[str, _P
         return _parse_dep_output(output)
     return _async.SyncTask(run).as_async
 
-def run_c_cpp_obj_build(compiler: str, args: _t.Sequence[str], src_path: _Path, obj_path: _Path, verbosity: int=0) -> _async.AsyncTask[None]:
-    def run() -> None:
-        cmd = [compiler]
-        cmd += args
-        cmd += ['-c', '-o', str(obj_path), str(src_path)]
-        if verbosity > 0:
-            print(*[_sh.quote(c) for c in cmd], file=_sys.stderr)
-        out = _sp.check_output(args=cmd, encoding='utf-8', stderr=_sp.PIPE).strip()
-        if verbosity > 2 and out != '':
-            print(out, file=_sys.stderr)
-    return _async.SyncTask(run).as_async
 
-def run_c_cpp_exe_build(compiler: str, args: _t.Sequence[str], obj_paths: _t.Sequence[_Path], exe_path: _Path, verbosity: int=0) -> _async.AsyncTask[None]:
+def run_process(*args: _t.Any, verbosity: int=0) -> _async.AsyncTask[None]:
     def run() -> None:
-        cmd = [compiler]
-        cmd += args
-        cmd += ['-o', str(exe_path)]
-        cmd += [str(p) for p in obj_paths]
+        cmd = [str(a) for a in args]
         if verbosity > 0:
             print(*[_sh.quote(c) for c in cmd], file=_sys.stderr)
         out = _sp.check_output(args=cmd, encoding='utf-8', stderr=_sp.PIPE).strip()
-        if verbosity > 2 and out != '':
+        if verbosity > 0 and out != '':
             print(out, file=_sys.stderr)
     return _async.SyncTask(run).as_async
 
