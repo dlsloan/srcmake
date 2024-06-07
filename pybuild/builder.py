@@ -73,23 +73,27 @@ class BuildEnv:
     _lck: _thr.Lock
     build_dir: _Path
     cc: str
+    cc_flags: _t.List[_t.Any]
     cxx: str
+    cxx_flags: _t.List[_t.Any]
     root_target: _Path
     verbosity: int
     targets: _t.Dict[_Path, TargetFile]
 
-    def __init__(self, root_target: _t.Union[_Path, str]) -> None:
+    def __init__(self, root_target: _t.Union[_Path, str], *, build_suffix: str='') -> None:
         root_target = _Path(root_target)
         self._lck = _thr.Lock()
         self.cc = 'gcc'
+        self.cc_flags = []
         self.cxx = 'g++'
+        self.cxx_flags = []
         self.verbosity = 1
         self.targets = {}
         if root_target.suffix not in target_types:
             raise NotImplementedError(f"Target type '{root_target.suffix}' unknown: {root_target}")
         while target_types[root_target.suffix].parent_target is not None:
             root_target = root_target.parent / f"{root_target.stem}{target_types[root_target.suffix].parent_target}"
-        self.build_dir = _Path(f"{root_target.stem}.build")
+        self.build_dir = _Path(f"{root_target.stem}{build_suffix}.build")
         self.root_target = root_target
 
     def get_target(self, path: _t.Union[_Path, str]) -> TargetFile:

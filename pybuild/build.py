@@ -2,13 +2,12 @@
 import mypycheck as _chk; _chk.check(__file__)
 
 import argparse
-import threading
+import shutil
 import subprocess as sp
-import os
+import tempfile
 
 from yfasync import *
 from builder import *
-import shutil
 from typing import *
 from pathlib import Path
 
@@ -36,7 +35,7 @@ class CObj(TargetFile):
     parent_target = ''
 
     def build(self) -> AsyncTask[None]:
-        return run_process(self.env.cc, '-c', '-o', self.real_path, self.src, verbosity=env.verbosity)
+        return run_process(self.env.cc, *self.env.cc_flags, '-c', '-o', self.real_path, self.src, verbosity=env.verbosity)
 
     @property
     def src(self) -> Path:
@@ -57,7 +56,7 @@ class CppObj(TargetFile):
     parent_target = ''
 
     def build(self) -> AsyncTask[None]:
-        return run_process(self.env.cxx, '-c', '-o', self.real_path, self.src, verbosity=env.verbosity)
+        return run_process(self.env.cxx, *self.env.cxx_flags, '-c', '-o', self.real_path, self.src, verbosity=env.verbosity)
 
     @property
     def src(self) -> Path:
@@ -78,11 +77,16 @@ class ExeFile(TargetFile):
         def run() -> Generator[None, None, None]:
             deps = yield from self.get_deps().yfvalue
             compiler = self.env.cc
+            compiler_flags = self.env.cc_flags
             for d in deps:
                 if str(d).endswith('.o++'):
                     compiler = self.env.cxx
+                    compiler_flags = self.env.cxx_flags
             deps = [self.env.get_real_path(d) for d in deps]
-            cmd = [compiler, '-o', self.real_path] + deps
+            cmd: List[Any]=[compiler]
+            cmd.extend(compiler_flags)
+            cmd.extend(['-o', self.real_path])
+            cmd.extend(deps)
             yield from run_process(*cmd, verbosity=self.env.verbosity).yfvalue
         return AsyncTask(run())
 
@@ -156,21 +160,42 @@ class JBinDump(TargetFile):
     def get_deps(self) -> AsyncTask[List[Path]]:
         return AsyncTask([self.hex])
 
+gdb_cmd = """
+set $_exitcode = -999
+catch throw
+r {args}
+if $_exitcode != -999
+    q
+end
+"""
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('target')
+    parser.add_argument('--clean', action='store_true')
+    parser.add_argument('--debug', '-g', action='store_true', help='Enable debug mode and start application in debugger if --run-target is also specified')
     parser.add_argument('--deps', action='store_true')
     parser.add_argument('--run', '-r', action='store_true')
-    parser.add_argument('--clean', action='store_true')
     args = parser.parse_args()
 
-    env = BuildEnv(args.target)
+    build_suffix = ''
+    if args.debug:
+        build_suffix += '-g'
+
+    env = BuildEnv(args.target, build_suffix=build_suffix)
+    if args.debug:
+        env.cc_flags.extend(['-g', '-O0'])
+        env.cxx_flags.extend(['-g', '-O0'])
+    else:
+        env.cc_flags.extend(['-O3'])
+        env.cxx_flags.extend(['-O3'])
+
     if args.deps:
         for v in env.get_target(args.target).get_deps().value:
             print(v)
     else:
         if args.clean:
-            shutil.rmtree(env.build_dir)
+            shutil.rmtree(env.build_dir, ignore_errors=True)
             if not args.run:
                 exit(0)
         try:
@@ -179,4 +204,12 @@ if __name__ == '__main__':
             print("Build failed: ", *err.cmd)
             print(err.stderr)
         if args.run:
-            sp.call([env.get_real_path(env.root_target)])
+            targ = env.get_real_path(env.root_target)
+            if args.debug:
+                with tempfile.NamedTemporaryFile() as tmp_file:
+                    gdb_cmd_path = Path(tmp_file.name)
+                    with gdb_cmd_path.open('w') as gdb_cmd_file:
+                        gdb_cmd_file.write(gdb_cmd.format(args=''))
+                    sp.call(['gdb', '-return-child-result', '-x', str(gdb_cmd_path), str(targ)])
+            else:
+                sp.call([targ])
