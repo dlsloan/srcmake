@@ -15,6 +15,8 @@ from pathlib import Path
 #       -Need sane defaults
 #       -Build commands should be constructed in build() function not a separate file
 #       -Need some way of configuring build settings in source c/cpp files
+#       -Incremental Unitests (some way of referencing ut's from soure files and executin on local changes)
+#         -once this is done, ut on obj builds is possible :)
 #       -Kernel modules ;) .ko target
 
 # Existing file targets (usually c/c++) files don't need a target file type they are just treated as in-place files
