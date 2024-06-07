@@ -8,6 +8,7 @@ import os
 
 from yfasync import *
 from builder import *
+import shutil
 from typing import *
 from pathlib import Path
 
@@ -159,6 +160,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('target')
     parser.add_argument('--deps', action='store_true')
+    parser.add_argument('--run', '-r', action='store_true')
+    parser.add_argument('--clean', action='store_true')
     args = parser.parse_args()
 
     env = BuildEnv(args.target)
@@ -166,8 +169,14 @@ if __name__ == '__main__':
         for v in env.get_target(args.target).get_deps().value:
             print(v)
     else:
+        if args.clean:
+            shutil.rmtree(env.build_dir)
+            if not args.run:
+                exit(0)
         try:
             env.build(env.root_target).value
         except sp.CalledProcessError as err:
             print("Build failed: ", *err.cmd)
             print(err.stderr)
+        if args.run:
+            sp.call([env.get_real_path(env.root_target)])
