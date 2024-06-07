@@ -14,8 +14,6 @@ from typing import *
 from pathlib import Path
 
 # TODO: -unit-test integration too! build.py --test ut_thing.cpp, and build.py --test thing.cpp should both work if thing.cpp has UT stuff in it, and ut stuff should disapear with peproc stuffs in normal builds
-#       -Need sane defaults
-#       -Build commands should be constructed in build() function not a separate file
 #       -Need some way of configuring build settings in source c/cpp files
 #       -Incremental Unitests (some way of referencing ut's from soure files and executin on local changes)
 #         -once this is done, ut on obj builds is possible :)
@@ -187,6 +185,8 @@ if __name__ == '__main__':
 
     env = BuildEnv(args.target, build_suffix=build_suffix)
     env.verbosity = args.verbose
+    env.cc_flags.extend(['-Wall', '-Werror'])
+    env.cxx_flags.extend(['-Wall', '-Werror', '-std=c++17'])
     if args.debug:
         env.cc_flags.extend(['-g', '-O0'])
         env.cxx_flags.extend(['-g', '-O0'])
