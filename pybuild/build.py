@@ -3,7 +3,9 @@ import mypycheck as _chk; _chk.check(__file__)
 
 import argparse
 import shutil
+import shlex
 import subprocess as sp
+import sys
 import tempfile
 
 from yfasync import *
@@ -176,6 +178,7 @@ if __name__ == '__main__':
     parser.add_argument('--debug', '-g', action='store_true', help='Enable debug mode and start application in debugger if --run-target is also specified')
     parser.add_argument('--deps', action='store_true')
     parser.add_argument('--run', '-r', action='store_true')
+    parser.add_argument('-v', '--verbose', action='count', default=0)
     args = parser.parse_args()
 
     build_suffix = ''
@@ -183,6 +186,7 @@ if __name__ == '__main__':
         build_suffix += '-g'
 
     env = BuildEnv(args.target, build_suffix=build_suffix)
+    env.verbosity = args.verbose
     if args.debug:
         env.cc_flags.extend(['-g', '-O0'])
         env.cxx_flags.extend(['-g', '-O0'])
@@ -204,12 +208,19 @@ if __name__ == '__main__':
             print("Build failed: ", *err.cmd)
             print(err.stderr)
         if args.run:
+            # TODO: should probably make run a target type porperty, that will allow vm/gdb/sim etc for any new types
             targ = env.get_real_path(env.root_target)
             if args.debug:
                 with tempfile.NamedTemporaryFile() as tmp_file:
                     gdb_cmd_path = Path(tmp_file.name)
                     with gdb_cmd_path.open('w') as gdb_cmd_file:
                         gdb_cmd_file.write(gdb_cmd.format(args=''))
-                    sp.call(['gdb', '-return-child-result', '-x', str(gdb_cmd_path), str(targ)])
+                    cmd = ['gdb', '-return-child-result', '-x', str(gdb_cmd_path), str(targ)]
+                    if env.verbosity > 0:
+                        print(*[shlex.quote(c) for c in cmd], file=sys.stderr)
+                    sp.call(cmd)
             else:
-                sp.call([targ])
+                cmd = [str(targ)]
+                if env.verbosity > 0:
+                    print(*[shlex.quote(c) for c in cmd], file=sys.stderr)
+                sp.call(cmd)
