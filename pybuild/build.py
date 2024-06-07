@@ -7,17 +7,9 @@ import subprocess as sp
 import os
 
 from yfasync import *
-from compilers import *
+from builder import *
 from typing import *
 from pathlib import Path
-
-def cached(fn: Callable[[Any], Any]) -> Callable[[Any], Any]:
-    def wrap(self: Any) -> Any:
-        cache_name = f"_cache_{fn.__name__}"
-        if not hasattr(self, cache_name):
-            setattr(self, cache_name, fn(self))
-        return getattr(self, cache_name)
-    return wrap
 
 # TODO: -unit-test integration too! build.py --test ut_thing.cpp, and build.py --test thing.cpp should both work if thing.cpp has UT stuff in it, and ut stuff should disapear with peproc stuffs in normal builds
 #       -Need sane defaults
