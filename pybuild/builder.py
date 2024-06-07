@@ -196,18 +196,7 @@ def run_process(*args: _t.Any, verbosity: int=0) -> _async.AsyncTask[None]:
             print(out, file=_sys.stderr)
     return _async.SyncTask(run).as_async
 
-def run_hex_build(compiler: str, args: _t.Sequence[str], exe_path: _Path, hex_path: _Path, verbosity: int=0) -> _async.AsyncTask[None]:
-    def run() -> None:
-        cmd = [compiler]
-        cmd += args
-        cmd += ['-O', 'ihex', str(exe_path), str(hex_path)]
-        if verbosity > 0:
-            print(*[_sh.quote(c) for c in cmd], file=_sys.stderr)
-        out = _sp.check_output(args=cmd, encoding='utf-8', stderr=_sp.PIPE).strip()
-        if verbosity > 2 and out != '':
-            print(out, file=_sys.stderr)
-    return _async.SyncTask(run).as_async
-
+# TODO: does this belong here? might deserve it's own file and documentation... I don't remember how this works and what the output format is exacly anymore
 def run_jbin_build(hex_path: _Path, jbin_path: _Path, verbosity: int=0) -> _async.AsyncTask[None]:
     def run() -> None:
         if verbosity > 0:

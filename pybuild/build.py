@@ -126,7 +126,7 @@ class HexDump(TargetFile):
         return env.build_dir / 'bin' / f"{path.stem}.hex"
 
     def build(self) -> AsyncTask[None]:
-        return run_hex_build('objcopy', [], self.env.get_real_path(self.exe), self.real_path, self.env.verbosity)
+        return run_process('objcopy', '-O', 'ihex', self.env.get_real_path(self.exe), self.real_path, verbosity=self.env.verbosity)
 
     @property
     def exe(self) -> Path:
