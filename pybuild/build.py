@@ -207,6 +207,7 @@ if __name__ == '__main__':
         except sp.CalledProcessError as err:
             print("Build failed: ", *err.cmd)
             print(err.stderr)
+            exit(1)
         if args.run:
             # TODO: should probably make run a target type porperty, that will allow vm/gdb/sim etc for any new types
             targ = env.get_real_path(env.root_target)
